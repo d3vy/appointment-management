@@ -1,0 +1,18 @@
+bot:
+  name: lingua_clips_bot
+  token: 8736482588:AAH85r0hHMPdVJeNe7BOkQlYJFoQ9KD3TfA
+
+spring:
+  application:
+    name: youglish
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/youglish_bot
+    username: postgres
+    password: "!rT8v^Q2m#L5z@J9p*X3w&hF7"
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+      default-schema: public
