@@ -58,7 +58,17 @@ public class MainService extends TelegramLongPollingBot {
             UserRole role = this.userRoleService.defineUserRoleByTelegramId(telegramId);
 
             if (role == UserRole.NOT_REGISTERED) {
-
+                switch (messageText) {
+                    case "/start" -> sendMessage(this.startService.prepareStartMessage(message));
+                    default -> {
+                        if (this.registrationService.isRegistering(telegramId)) {
+                            SendMessage msg = this.registrationService.handleMessage(telegramId, chatId, messageText);
+                            if (msg != null) sendMessage(msg);
+                        } else {
+                            send(chatId, "Сначала зарегистрируйтесь");
+                        }
+                    }
+                }
             } else if (role == UserRole.CLIENT) {
                 switch (messageText) {
                     case "/start" -> {
@@ -91,14 +101,16 @@ public class MainService extends TelegramLongPollingBot {
             if (role == UserRole.NOT_REGISTERED) {
                 switch (data) {
                     case "REGISTER" -> {
-                        this.registrationService.createContext(telegramId);
-                        SendMessage messageToSend = this.registrationService.prepareAskRoleMessage(chatId);
-                        sendMessage(messageToSend);
+                        SendMessage msg = this.registrationService.startRegistration(telegramId, chatId);
+                        sendMessage(msg);
                     }
                     case "ROLE_CLIENT", "ROLE_SPECIALIST", "ROLE_MANAGER" -> {
-                        this.registrationService.handleRoleCallback(telegramId, data);
-                        SendMessage messageToSend = this.registrationService.prepareAskFirstnameMessage(chatId);
-                        sendMessage(messageToSend);
+                        SendMessage msg = this.registrationService.handleRoleCallback(telegramId, chatId, data);
+                        if (msg != null) sendMessage(msg);
+                    }
+                    case "BACK_TO_ROLE", "BACK_TO_FIRSTNAME", "BACK_TO_LASTNAME" -> {
+                        SendMessage msg = this.registrationService.handleBackCallback(telegramId, chatId, data);
+                        if (msg != null) sendMessage(msg);
                     }
                 }
             } else if (role == UserRole.CLIENT) {
