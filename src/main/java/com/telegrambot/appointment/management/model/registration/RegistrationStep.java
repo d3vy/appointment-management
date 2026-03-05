@@ -1,10 +1,13 @@
 package com.telegrambot.appointment.management.model.registration;
 
 public enum RegistrationStep {
-    NONE,
-    CHOOSE_ROLE,
+    // Общие шаги
     ENTER_FIRSTNAME,
     ENTER_LASTNAME,
     ENTER_NUMBER,
-    REGISTERED
+
+    // Менеджерский флоу
+    MANAGER_ENTER_FIRSTNAME,
+    MANAGER_ENTER_LASTNAME,
+    MANAGER_ENTER_NUMBER
 }

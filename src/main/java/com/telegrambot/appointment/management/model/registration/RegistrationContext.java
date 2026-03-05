@@ -12,20 +12,23 @@ public class RegistrationContext {
     @Column(nullable = false, unique = true)
     private Long telegramId;
 
+    private String username;
+
     @Enumerated(EnumType.STRING)
     private RegistrationStep step;
 
     @Enumerated(EnumType.STRING)
     private UserRole role;
 
-    @NotNull
     private String firstname;
 
-    @NotNull
     private String lastname;
 
-    @NotNull
     private String number;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pending_role")
+    private UserRole pendingRole;
 
     public UserRole getRole() {
         return role;
@@ -73,5 +76,21 @@ public class RegistrationContext {
 
     public void setTelegramId(Long telegramId) {
         this.telegramId = telegramId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public UserRole getPendingRole() {
+        return pendingRole;
+    }
+
+    public void setPendingRole(UserRole pendingRole) {
+        this.pendingRole = pendingRole;
     }
 }

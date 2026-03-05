@@ -23,19 +23,22 @@ public class MainService extends TelegramLongPollingBot {
     private final RegistrationService registrationService;
     private final MenuService menuService;
     private final UserRoleService userRoleService;
+    private final ManagerService managerService;
 
     public MainService(
             BotConfig botConfig,
             StartService startService,
             RegistrationService registrationService,
             MenuService menuService,
-            UserRoleService userRoleService
+            UserRoleService userRoleService,
+            ManagerService managerService
     ) {
         this.botConfig = botConfig;
         this.startService = startService;
         this.registrationService = registrationService;
         this.menuService = menuService;
         this.userRoleService = userRoleService;
+        this.managerService = managerService;
     }
 
     @Override
@@ -53,9 +56,11 @@ public class MainService extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().hasText()) {
             Message message = update.getMessage();
             Long telegramId = message.getFrom().getId();
+            String username = message.getFrom().getUserName();
             Long chatId = message.getChatId();
             String messageText = message.getText();
             UserRole role = this.userRoleService.defineUserRoleByTelegramId(telegramId);
+
 
             if (role == UserRole.NOT_REGISTERED) {
                 switch (messageText) {
@@ -75,13 +80,6 @@ public class MainService extends TelegramLongPollingBot {
                         SendMessage messageToSend = this.startService.prepareStartMessage(message);
                         sendMessage(messageToSend);
                     }
-                    default -> {
-                        if (this.registrationService.isRegistering(telegramId)) {
-                            this.registrationService.handleMessage(telegramId, chatId, messageText);
-                        } else {
-                            send(chatId, "Сначала зарегистрируйтесь");
-                        }
-                    }
                 }
             } else if (role == UserRole.SPECIALIST) {
 
@@ -95,21 +93,26 @@ public class MainService extends TelegramLongPollingBot {
             String data = callback.getData();
             Long telegramId = callback.getFrom().getId();
             Message message = (Message) callback.getMessage();
+            String username = callback.getFrom().getUserName();
             Long chatId = message.getChatId();
             UserRole role = this.userRoleService.defineUserRoleByTelegramId(telegramId);
 
             if (role == UserRole.NOT_REGISTERED) {
                 switch (data) {
                     case "REGISTER" -> {
-                        SendMessage msg = this.registrationService.startRegistration(telegramId, chatId);
+                        SendMessage msg;
+                        log.info("REGISTER callback: telegramId={}, username={}, whitelisted={}",
+                                telegramId, username, userRoleService.isManagerWhitelisted(username));
+                        if (userRoleService.isManagerWhitelisted(username)) {
+                            msg = registrationService.startManagerRegistration(telegramId, chatId, username);
+                        } else {
+                            msg = registrationService.startClientRegistration(telegramId, chatId, username);
+                        }
                         sendMessage(msg);
                     }
-                    case "ROLE_CLIENT", "ROLE_SPECIALIST", "ROLE_MANAGER" -> {
-                        SendMessage msg = this.registrationService.handleRoleCallback(telegramId, chatId, data);
-                        if (msg != null) sendMessage(msg);
-                    }
-                    case "BACK_TO_ROLE", "BACK_TO_FIRSTNAME", "BACK_TO_LASTNAME" -> {
-                        SendMessage msg = this.registrationService.handleBackCallback(telegramId, chatId, data);
+                    case "BACK_TO_FIRSTNAME", "BACK_TO_LASTNAME",
+                         "BACK_TO_MANAGER_FIRSTNAME", "BACK_TO_MANAGER_LASTNAME" -> {
+                        SendMessage msg = registrationService.handleBackCallback(telegramId, chatId, data);
                         if (msg != null) sendMessage(msg);
                     }
                 }

@@ -25,176 +25,199 @@ import java.util.List;
 @Transactional
 public class RegistrationService {
 
+    private static final String PHONE_REGEX = "^(\\+7|8)[0-9]{10}$";
+
     private final ClientRepository clientRepository;
-    private final SpecialistRepository specialistRepository;
     private final ManagerRepository managerRepository;
     private final RegistrationContextRepository contextRepository;
 
     public RegistrationService(
             ClientRepository clientRepository,
-            SpecialistRepository specialistRepository,
             ManagerRepository managerRepository,
             RegistrationContextRepository contextRepository
     ) {
         this.clientRepository = clientRepository;
-        this.specialistRepository = specialistRepository;
         this.managerRepository = managerRepository;
         this.contextRepository = contextRepository;
     }
 
-    public SendMessage startRegistration(Long telegramId, Long chatId) {
-        RegistrationContext context = new RegistrationContext();
-        context.setTelegramId(telegramId);
-        context.setStep(RegistrationStep.CHOOSE_ROLE);
-        this.contextRepository.save(context);
-        return prepareAskRoleMessage(chatId);
-    }
 
-    public SendMessage handleRoleCallback(Long telegramId, Long chatId, String data) {
-        RegistrationContext context = this.contextRepository.findById(telegramId).orElse(null);
-        if (context == null) return null;
-        if (context.getStep() != RegistrationStep.CHOOSE_ROLE) return null;
-
-        if ("ROLE_CLIENT".equals(data)) {
-            context.setRole(UserRole.CLIENT);
-        } else if ("ROLE_SPECIALIST".equals(data)) {
-            context.setRole(UserRole.SPECIALIST);
-        } else if ("ROLE_MANAGER".equals(data)) {
-            context.setRole(UserRole.MANAGER);
-        } else return null;
-
+    public SendMessage startClientRegistration(Long telegramId, Long chatId, String username) {
+        RegistrationContext context = buildContext(telegramId, username, UserRole.CLIENT);
         context.setStep(RegistrationStep.ENTER_FIRSTNAME);
+        contextRepository.save(context);
         return prepareAskFirstnameMessage(chatId);
     }
 
+    public SendMessage startManagerRegistration(Long telegramId, Long chatId, String username) {
+        RegistrationContext context = buildContext(telegramId, username, UserRole.MANAGER);
+        context.setStep(RegistrationStep.MANAGER_ENTER_FIRSTNAME);
+        contextRepository.save(context);
+
+        return new SendMessage(chatId.toString(),
+                "👔 Вы определены как менеджер.\nДавайте заполним ваш профиль.\n\nВведите ваше имя:");
+    }
+
+    private RegistrationContext buildContext(Long telegramId, String username, UserRole role) {
+        RegistrationContext context = contextRepository.findById(telegramId)
+                .orElse(new RegistrationContext());
+        context.setTelegramId(telegramId);
+        context.setUsername(username);
+        context.setPendingRole(role);
+        return context;
+    }
+
+
     public SendMessage handleMessage(Long telegramId, Long chatId, String messageText) {
-        RegistrationContext context = this.contextRepository.findById(telegramId).orElse(null);
+        RegistrationContext context = contextRepository.findById(telegramId).orElse(null);
         if (context == null) return null;
 
-        switch (context.getStep()) {
+        return switch (context.getStep()) {
+
             case ENTER_FIRSTNAME -> {
-                context.setFirstname(messageText);
+                context.setFirstname(messageText.trim());
                 context.setStep(RegistrationStep.ENTER_LASTNAME);
-                this.contextRepository.save(context);
-                return prepareAskLastnameMessage(chatId);
+                contextRepository.save(context);
+                yield prepareAskLastnameMessage(chatId);
             }
             case ENTER_LASTNAME -> {
-                context.setLastname(messageText);
+                context.setLastname(messageText.trim());
                 context.setStep(RegistrationStep.ENTER_NUMBER);
-                this.contextRepository.save(context);
-                return prepareAskNumberMessage(chatId);
+                contextRepository.save(context);
+                yield prepareAskNumberMessage(chatId);
             }
             case ENTER_NUMBER -> {
-                context.setNumber(messageText);
-                saveUser(telegramId, context);
-                this.contextRepository.delete(context);
-                return new SendMessage(chatId.toString(), "Вы зарегистрированы ✅");
+                if (!isValidPhone(messageText)) {
+                    yield new SendMessage(chatId.toString(),
+                            "❌ Неверный формат. Введите номер в формате +79991234567 или 89991234567");
+                }
+                context.setNumber(messageText.trim());
+                saveClient(telegramId, context);
+                contextRepository.delete(context);
+                yield new SendMessage(chatId.toString(), "✅ Вы успешно зарегистрированы как клиент!");
             }
-        }
-        return null;
+
+            case MANAGER_ENTER_FIRSTNAME -> {
+                context.setFirstname(messageText.trim());
+                context.setStep(RegistrationStep.MANAGER_ENTER_LASTNAME);
+                contextRepository.save(context);
+                yield prepareAskLastnameMessageWithBack(chatId, "BACK_TO_MANAGER_FIRSTNAME");
+            }
+            case MANAGER_ENTER_LASTNAME -> {
+                context.setLastname(messageText.trim());
+                context.setStep(RegistrationStep.MANAGER_ENTER_NUMBER);
+                contextRepository.save(context);
+                yield prepareAskNumberMessageWithBack(chatId, "BACK_TO_MANAGER_LASTNAME");
+            }
+            case MANAGER_ENTER_NUMBER -> {
+                if (!isValidPhone(messageText)) {
+                    yield new SendMessage(chatId.toString(),
+                            "❌ Неверный формат. Введите номер в формате +79991234567 или 89991234567");
+                }
+                context.setNumber(messageText.trim());
+                saveManager(telegramId, context);
+                contextRepository.delete(context);
+                yield new SendMessage(chatId.toString(), "✅ Профиль менеджера создан!");
+            }
+
+            default -> null;
+        };
     }
+
+
+    public SendMessage handleBackCallback(Long telegramId, Long chatId, String data) {
+        RegistrationContext context = contextRepository.findById(telegramId).orElse(null);
+        if (context == null) return null;
+
+        return switch (data) {
+            case "BACK_TO_FIRSTNAME" -> {
+                context.setLastname(null); // сбрасываем данные шага
+                context.setStep(RegistrationStep.ENTER_FIRSTNAME);
+                contextRepository.save(context);
+                yield prepareAskFirstnameMessage(chatId);
+            }
+            case "BACK_TO_LASTNAME" -> {
+                context.setNumber(null);
+                context.setStep(RegistrationStep.ENTER_LASTNAME);
+                contextRepository.save(context);
+                yield prepareAskLastnameMessage(chatId);
+            }
+            case "BACK_TO_MANAGER_FIRSTNAME" -> {
+                context.setLastname(null);
+                context.setStep(RegistrationStep.MANAGER_ENTER_FIRSTNAME);
+                contextRepository.save(context);
+                yield new SendMessage(chatId.toString(), "Введите ваше имя:");
+            }
+            case "BACK_TO_MANAGER_LASTNAME" -> {
+                context.setNumber(null);
+                context.setStep(RegistrationStep.MANAGER_ENTER_LASTNAME);
+                contextRepository.save(context);
+                yield prepareAskLastnameMessageWithBack(chatId, "BACK_TO_MANAGER_FIRSTNAME");
+            }
+            default -> null;
+        };
+    }
+
 
     public boolean isRegistering(Long telegramId) {
-        return this.contextRepository.findById(telegramId).isPresent();
+        return contextRepository.findById(telegramId).isPresent();
     }
 
-    private SendMessage prepareAskRoleMessage(Long chatId) {
-        SendMessage message = new SendMessage(chatId.toString(), "Кто вы?");
-
-        InlineKeyboardButton client = new InlineKeyboardButton();
-        client.setText("✌️ Клиент");
-        client.setCallbackData("ROLE_CLIENT");
-
-        InlineKeyboardButton specialist = new InlineKeyboardButton();
-        specialist.setText("💪 Специалист");
-        specialist.setCallbackData("ROLE_SPECIALIST");
-
-        message.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(client, specialist))));
-        return message;
+    private boolean isValidPhone(String phone) {
+        return phone != null && phone.replaceAll("\\s", "").matches(PHONE_REGEX);
     }
+
+
+    private void saveClient(Long telegramId, RegistrationContext context) {
+        Client client = new Client();
+        client.setTelegramId(telegramId);
+        client.setFirstname(context.getFirstname());
+        client.setLastname(context.getLastname());
+        client.setPhoneNumber(context.getNumber());
+        client.setUsername(context.getUsername());
+        clientRepository.save(client);
+    }
+
+    private void saveManager(Long telegramId, RegistrationContext context) {
+        Manager manager = new Manager();
+        manager.setTelegramId(telegramId);
+        manager.setFirstname(context.getFirstname());
+        manager.setLastname(context.getLastname());
+        manager.setPhoneNumber(context.getNumber());
+        manager.setUsername(context.getUsername());
+        managerRepository.save(manager);
+    }
+
 
     private SendMessage prepareAskFirstnameMessage(Long chatId) {
-        SendMessage message = new SendMessage(chatId.toString(), "Введите ваше имя");
-
-        InlineKeyboardButton back = new InlineKeyboardButton();
-        back.setText("👈 Вернуться");
-        back.setCallbackData("BACK_TO_ROLE");
-
-        message.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(back))));
-        return message;
+        return new SendMessage(chatId.toString(), "Введите ваше имя:");
     }
 
     private SendMessage prepareAskLastnameMessage(Long chatId) {
-        SendMessage message = new SendMessage(chatId.toString(), "Введите вашу фамилию");
+        return prepareAskLastnameMessageWithBack(chatId, "BACK_TO_FIRSTNAME");
+    }
 
-        InlineKeyboardButton back = new InlineKeyboardButton();
-        back.setText("👈 Вернуться");
-        back.setCallbackData("BACK_TO_FIRSTNAME");
-
-        message.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(back))));
+    private SendMessage prepareAskLastnameMessageWithBack(Long chatId, String backCallback) {
+        SendMessage message = new SendMessage(chatId.toString(), "Введите вашу фамилию:");
+        message.setReplyMarkup(buildBackKeyboard(backCallback));
         return message;
     }
 
     private SendMessage prepareAskNumberMessage(Long chatId) {
-        SendMessage message = new SendMessage(chatId.toString(), "Введите ваш номер телефона");
+        return prepareAskNumberMessageWithBack(chatId, "BACK_TO_LASTNAME");
+    }
 
-        InlineKeyboardButton back = new InlineKeyboardButton();
-        back.setText("👈 Вернуться");
-        back.setCallbackData("BACK_TO_LASTNAME");
-
-        message.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(back))));
+    private SendMessage prepareAskNumberMessageWithBack(Long chatId, String backCallback) {
+        SendMessage message = new SendMessage(chatId.toString(),
+                "Введите ваш номер телефона:\n(формат: +79991234567)");
+        message.setReplyMarkup(buildBackKeyboard(backCallback));
         return message;
     }
 
-    public SendMessage handleBackCallback(Long telegramId, Long chatId, String data) {
-        RegistrationContext context = this.contextRepository.findById(telegramId).orElse(null);
-        if (context == null) return null;
-
-        switch (data) {
-            case "BACK_TO_ROLE" -> {
-                context.setStep(RegistrationStep.CHOOSE_ROLE);
-                this.contextRepository.save(context);
-                return prepareAskRoleMessage(chatId);
-            }
-            case "BACK_TO_FIRSTNAME" -> {
-                context.setStep(RegistrationStep.ENTER_FIRSTNAME);
-                this.contextRepository.save(context);
-                return prepareAskFirstnameMessage(chatId);
-            }
-            case "BACK_TO_LASTNAME" -> {
-                context.setStep(RegistrationStep.ENTER_LASTNAME);
-                this.contextRepository.save(context);
-                return prepareAskLastnameMessage(chatId);
-            }
-        }
-        return null;
-    }
-
-    private void saveUser(Long telegramId, RegistrationContext context) {
-        User user;
-
-        if (context.getRole() == UserRole.CLIENT) {
-            user = new Client();
-        } else if (context.getRole() == UserRole.SPECIALIST) {
-            user = new Specialist();
-        } else if (context.getRole() == UserRole.MANAGER) {
-            user = new Manager();
-        } else {
-            throw new IllegalArgumentException("Unknown role");
-        }
-
-        user.setTelegramId(telegramId);
-        user.setFirstname(context.getFirstname());
-        user.setLastname(context.getLastname());
-        user.setPhoneNumber(context.getNumber());
-
-        if (user instanceof Client client) {
-            this.clientRepository.save(client);
-        } else if (user instanceof Specialist specialist) {
-            this.specialistRepository.save(specialist);
-        } else {
-            Manager manager = (Manager) user;
-            this.managerRepository.save(manager);
-        }
+    private InlineKeyboardMarkup buildBackKeyboard(String callbackData) {
+        InlineKeyboardButton back = new InlineKeyboardButton();
+        back.setText("👈 Вернуться");
+        back.setCallbackData(callbackData);
+        return new InlineKeyboardMarkup(List.of(List.of(back)));
     }
 }

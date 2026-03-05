@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface SpecialistRepository extends JpaRepository<Specialist, Integer> {
     Optional<Specialist> findByTelegramId(Long telegramId);
+    boolean existsByTelegramId(Long telegramId);
 }

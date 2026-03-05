@@ -11,6 +11,9 @@ public class User {
     @Column(unique = true, nullable = false)
     private Long telegramId;
 
+    @Column(unique = true, nullable = false)
+    private String username;
+
     private String firstname;
     private String lastname;
 
@@ -23,11 +26,13 @@ public class User {
 
     public User(
             Long telegramId,
+            String username,
             String firstname,
             String lastname,
             String phoneNumber
     ) {
         this.telegramId = telegramId;
+        this.username = username;
         this.firstname = firstname;
         this.lastname = lastname;
         this.phoneNumber = phoneNumber;
@@ -71,5 +76,13 @@ public class User {
 
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 }

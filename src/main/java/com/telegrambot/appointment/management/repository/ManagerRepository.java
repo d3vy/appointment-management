@@ -10,4 +10,5 @@ import java.util.Optional;
 @Repository
 public interface ManagerRepository extends JpaRepository<Manager, Integer> {
     Optional<Manager> findByTelegramId(Long telegramId);
+    boolean existsByTelegramId(Long telegramId);
 }
