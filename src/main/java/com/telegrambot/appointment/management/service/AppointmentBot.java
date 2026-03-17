@@ -1,0 +1,60 @@
+package com.telegrambot.appointment.management.service;
+
+import com.telegrambot.appointment.management.config.BotConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+/**
+ * Тонкая обёртка над TelegramLongPollingBot.
+ * Ответственность:
+ *   1. Предоставить credentials SDK.
+ *   2. Принять update и передать в UpdateRouter.
+ *   3. Отправить исходящее сообщение.
+ *
+ * Вся бизнес-логика, роутинг и команды — в UpdateRouter.
+ */
+@Service
+public class AppointmentBot extends TelegramLongPollingBot {
+
+    private static final Logger log = LoggerFactory.getLogger(AppointmentBot.class);
+
+    private final BotConfig botConfig;
+    private final UpdateRouter updateRouter;
+
+    public AppointmentBot(BotConfig botConfig, UpdateRouter updateRouter) {
+        this.botConfig = botConfig;
+        this.updateRouter = updateRouter;
+    }
+
+    @Override
+    public String getBotUsername() {
+        return botConfig.getBotName();
+    }
+
+    @Override
+    public String getBotToken() {
+        return botConfig.getToken();
+    }
+
+    @Override
+    public void onUpdateReceived(Update update) {
+        try {
+            updateRouter.route(update, this::sendMessage);
+        } catch (Exception e) {
+            log.error("Unhandled exception while processing update", e);
+        }
+    }
+
+    public void sendMessage(SendMessage message) {
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send message to chatId={}: {}", message.getChatId(), e.getMessage());
+        }
+    }
+}

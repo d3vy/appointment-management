@@ -13,24 +13,18 @@ import java.util.List;
 public class MenuService {
 
     public SendMessage prepareMenuMessage(Message message) {
-        String text = EmojiParser.parseToUnicode(
-                "Menu 📋"
-        );
+        String text = EmojiParser.parseToUnicode("Menu 📋");
 
-        InlineKeyboardButton settingsButton = new InlineKeyboardButton();
-        settingsButton.setText("Регистрация");
-        settingsButton.setCallbackData("REGISTER");
-
-
-
+        InlineKeyboardButton registerButton = new InlineKeyboardButton();
+        registerButton.setText("Регистрация");
+        registerButton.setCallbackData("REGISTER");
 
         InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup(
-                List.of(List.of(settingsButton))
+                List.of(List.of(registerButton))
         );
 
         SendMessage msg = new SendMessage(message.getChatId().toString(), text);
         msg.setReplyMarkup(keyboard);
-
         return msg;
     }
 }

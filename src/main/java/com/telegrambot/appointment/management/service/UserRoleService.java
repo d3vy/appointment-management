@@ -1,42 +1,55 @@
 package com.telegrambot.appointment.management.service;
 
 import com.telegrambot.appointment.management.model.UserRole;
-import com.telegrambot.appointment.management.model.user.User;
-import com.telegrambot.appointment.management.repository.ClientRepository;
-import com.telegrambot.appointment.management.repository.ManagerRepository;
+import com.telegrambot.appointment.management.model.UserRoleCache;
 import com.telegrambot.appointment.management.repository.ManagerWhitelistRepository;
-import com.telegrambot.appointment.management.repository.SpecialistRepository;
+import com.telegrambot.appointment.management.repository.UserRoleCacheRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserRoleService {
 
-    private final ClientRepository clientRepository;
-    private final SpecialistRepository specialistRepository;
-    private final ManagerRepository managerRepository;
+    private static final Logger log = LoggerFactory.getLogger(UserRoleService.class);
+
+    private final UserRoleCacheRepository roleCacheRepository;
     private final ManagerWhitelistRepository whitelistRepository;
 
-    public UserRoleService(
-            ClientRepository clientRepository,
-            SpecialistRepository specialistRepository,
-            ManagerRepository managerRepository,
-            ManagerWhitelistRepository whitelistRepository
-    ) {
-        this.clientRepository = clientRepository;
-        this.specialistRepository = specialistRepository;
-        this.managerRepository = managerRepository;
+    public UserRoleService(UserRoleCacheRepository roleCacheRepository,
+                           ManagerWhitelistRepository whitelistRepository) {
+        this.roleCacheRepository = roleCacheRepository;
         this.whitelistRepository = whitelistRepository;
     }
 
+    /**
+     * Один запрос в БД вместо прежних трёх последовательных existsBy.
+     */
+    @Transactional(readOnly = true)
     public UserRole defineUserRoleByTelegramId(Long telegramId) {
-        if (clientRepository.existsByTelegramId(telegramId)) return UserRole.CLIENT;
-        if (specialistRepository.existsByTelegramId(telegramId)) return UserRole.SPECIALIST;
-        if (managerRepository.existsByTelegramId(telegramId)) return UserRole.MANAGER;
-        return UserRole.NOT_REGISTERED;
+        return roleCacheRepository.findByTelegramId(telegramId)
+                .map(UserRoleCache::getRole)
+                .orElse(UserRole.NOT_REGISTERED);
     }
 
+    @Transactional(readOnly = true)
     public boolean isManagerWhitelisted(String username) {
         if (username == null || username.isBlank()) return false;
-        return whitelistRepository.existsByUsernameIgnoreCase(username);
+        boolean whitelisted = whitelistRepository.existsByUsernameIgnoreCase(username);
+        log.debug("Whitelist check username={}: {}", username, whitelisted);
+        return whitelisted;
+    }
+
+    /**
+     * Вызывается из RegistrationService после успешного сохранения пользователя.
+     */
+    @Transactional
+    public void assignRole(Long telegramId, UserRole role) {
+        UserRoleCache cache = roleCacheRepository.findByTelegramId(telegramId)
+                .orElse(new UserRoleCache(telegramId, role));
+        cache.setRole(role);
+        roleCacheRepository.save(cache);
+        log.info("Assigned role {} to telegramId={}", role, telegramId);
     }
 }

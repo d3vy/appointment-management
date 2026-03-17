@@ -12,16 +12,15 @@ import java.util.List;
 @Service
 public class StartService {
 
-
     public SendMessage prepareStartMessage(Message message) {
         String text = EmojiParser.parseToUnicode(
                 "Здравствуйте, " + message.getFrom().getFirstName() + " 👋\n" +
-                        "Выберите услугу и запишитесь к мастеру в пару кликов\n" +
-                        "(Но сначала небольшая регистрация)"
+                "Выберите услугу и запишитесь к мастеру в пару кликов\n" +
+                "(Но сначала небольшая регистрация)"
         );
 
         InlineKeyboardButton registerButton = new InlineKeyboardButton();
-        registerButton.setText("Регстрация");
+        registerButton.setText("Регистрация");
         registerButton.setCallbackData("REGISTER");
 
         InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup(
@@ -30,8 +29,6 @@ public class StartService {
 
         SendMessage msg = new SendMessage(message.getChatId().toString(), text);
         msg.setReplyMarkup(keyboard);
-
         return msg;
     }
-
 }

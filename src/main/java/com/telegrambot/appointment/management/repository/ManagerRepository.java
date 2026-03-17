@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-
 @Repository
 public interface ManagerRepository extends JpaRepository<Manager, Integer> {
     Optional<Manager> findByTelegramId(Long telegramId);

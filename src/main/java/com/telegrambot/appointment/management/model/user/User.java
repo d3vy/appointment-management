@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 
 @MappedSuperclass
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
@@ -11,7 +12,9 @@ public class User {
     @Column(unique = true, nullable = false)
     private Long telegramId;
 
-    @Column(unique = true, nullable = false)
+    // username — необязательное поле в Telegram.
+    // Если пользователь не установил username, сохраняем telegramId.toString().
+    @Column(unique = true)
     private String username;
 
     private String firstname;
@@ -20,17 +23,9 @@ public class User {
     @Column(unique = true)
     private String phoneNumber;
 
+    public User() {}
 
-    public User() {
-    }
-
-    public User(
-            Long telegramId,
-            String username,
-            String firstname,
-            String lastname,
-            String phoneNumber
-    ) {
+    public User(Long telegramId, String username, String firstname, String lastname, String phoneNumber) {
         this.telegramId = telegramId;
         this.username = username;
         this.firstname = firstname;
@@ -38,51 +33,21 @@ public class User {
         this.phoneNumber = phoneNumber;
     }
 
-    public Integer getId() {
-        return id;
-    }
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
+    public Long getTelegramId() { return telegramId; }
+    public void setTelegramId(Long telegramId) { this.telegramId = telegramId; }
 
-    public Long getTelegramId() {
-        return telegramId;
-    }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
-    public void setTelegramId(Long telegramId) {
-        this.telegramId = telegramId;
-    }
+    public String getFirstname() { return firstname; }
+    public void setFirstname(String firstname) { this.firstname = firstname; }
 
-    public String getFirstname() {
-        return firstname;
-    }
+    public String getLastname() { return lastname; }
+    public void setLastname(String lastname) { this.lastname = lastname; }
 
-    public void setFirstname(String firstname) {
-        this.firstname = firstname;
-    }
-
-    public String getLastname() {
-        return lastname;
-    }
-
-    public void setLastname(String lastname) {
-        this.lastname = lastname;
-    }
-
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 }
