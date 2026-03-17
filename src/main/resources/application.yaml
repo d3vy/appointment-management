@@ -1,18 +1,36 @@
 bot:
-  name: lingua_clips_bot
-  token: 8736482588:AAH85r0hHMPdVJeNe7BOkQlYJFoQ9KD3TfA
+  name: ${BOT_NAME}
+  token: ${BOT_TOKEN}
 
 spring:
   application:
-    name: youglish
+    name: appointment-management
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/youglish_bot
-    username: postgres
-    password: "!rT8v^Q2m#L5z@J9p*X3w&hF7"
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/appointment_bot}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD}
 
   jpa:
-    show-sql: true
+    show-sql: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
       default-schema: public
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+logging:
+  level:
+    com.telegrambot: INFO
+    org.hibernate.SQL: DEBUG
