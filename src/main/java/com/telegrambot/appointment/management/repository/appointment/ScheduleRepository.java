@@ -1,6 +1,6 @@
-package com.telegrambot.appointment.management.repository;
+package com.telegrambot.appointment.management.repository.appointment;
 
-import com.telegrambot.appointment.management.model.appointment.Schedule;
+import com.telegrambot.appointment.management.model.appointment.schedule.Schedule;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

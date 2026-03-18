@@ -1,4 +1,4 @@
-package com.telegrambot.appointment.management.repository;
+package com.telegrambot.appointment.management.repository.user;
 
 import com.telegrambot.appointment.management.model.user.UserRoleCache;
 import org.springframework.data.jpa.repository.JpaRepository;

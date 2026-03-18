@@ -5,9 +5,9 @@ import com.telegrambot.appointment.management.model.registration.RegistrationCon
 import com.telegrambot.appointment.management.model.registration.RegistrationStep;
 import com.telegrambot.appointment.management.model.user.Client;
 import com.telegrambot.appointment.management.model.user.Manager;
-import com.telegrambot.appointment.management.repository.ClientRepository;
-import com.telegrambot.appointment.management.repository.ManagerRepository;
-import com.telegrambot.appointment.management.repository.RegistrationContextRepository;
+import com.telegrambot.appointment.management.repository.user.ClientRepository;
+import com.telegrambot.appointment.management.repository.user.ManagerRepository;
+import com.telegrambot.appointment.management.repository.registration.RegistrationContextRepository;
 import com.telegrambot.appointment.management.service.UserRoleService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,4 +1,4 @@
-package com.telegrambot.appointment.management.repository;
+package com.telegrambot.appointment.management.repository.registration;
 
 import com.telegrambot.appointment.management.model.registration.RegistrationContext;
 import org.springframework.data.repository.CrudRepository;

@@ -1,4 +1,4 @@
-package com.telegrambot.appointment.management.model.appointment;
+package com.telegrambot.appointment.management.model.appointment.schedule;
 
 import com.telegrambot.appointment.management.model.user.Manager;
 import com.telegrambot.appointment.management.model.user.Specialist;

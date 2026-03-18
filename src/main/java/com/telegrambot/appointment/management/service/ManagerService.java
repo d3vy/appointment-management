@@ -1,7 +1,7 @@
 package com.telegrambot.appointment.management.service;
 
 import com.telegrambot.appointment.management.model.user.Manager;
-import com.telegrambot.appointment.management.repository.ManagerRepository;
+import com.telegrambot.appointment.management.repository.user.ManagerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

@@ -1,4 +1,4 @@
-package com.telegrambot.appointment.management.model.appointment;
+package com.telegrambot.appointment.management.model.appointment.schedule;
 
 import jakarta.persistence.*;
 

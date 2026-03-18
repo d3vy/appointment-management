@@ -1,5 +1,6 @@
 package com.telegrambot.appointment.management.model.appointment;
 
+import com.telegrambot.appointment.management.model.appointment.schedule.ScheduleSlot;
 import com.telegrambot.appointment.management.model.user.Client;
 import com.telegrambot.appointment.management.model.user.Specialist;
 import jakarta.persistence.*;
