@@ -1,10 +1,8 @@
-package com.telegrambot.appointment.management.model;
+package com.telegrambot.appointment.management.model.appointment;
 
-import com.telegrambot.appointment.management.model.user.Specialist;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Entity
 @Table(schema = "service", name = "services")
@@ -20,16 +18,10 @@ public class Service {
     @Column(nullable = false)
     private BigDecimal price;
 
-    @OneToMany(mappedBy = "service", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Specialist> specialists;
+    @Column(name = "duration_minutes", nullable = false)
+    private Integer durationMinutes;
 
     public Service() {}
-
-    public Service(String name, BigDecimal price, List<Specialist> specialists) {
-        this.name = name;
-        this.price = price;
-        this.specialists = specialists;
-    }
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -40,6 +32,6 @@ public class Service {
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
 
-    public List<Specialist> getSpecialists() { return specialists; }
-    public void setSpecialists(List<Specialist> specialists) { this.specialists = specialists; }
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
 }

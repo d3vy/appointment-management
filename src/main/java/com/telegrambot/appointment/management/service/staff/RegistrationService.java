@@ -1,6 +1,6 @@
 package com.telegrambot.appointment.management.service.staff;
 
-import com.telegrambot.appointment.management.model.UserRole;
+import com.telegrambot.appointment.management.model.user.UserRole;
 import com.telegrambot.appointment.management.model.registration.RegistrationContext;
 import com.telegrambot.appointment.management.model.registration.RegistrationStep;
 import com.telegrambot.appointment.management.model.user.Client;

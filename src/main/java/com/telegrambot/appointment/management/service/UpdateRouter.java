@@ -1,6 +1,6 @@
 package com.telegrambot.appointment.management.service;
 
-import com.telegrambot.appointment.management.model.UserRole;
+import com.telegrambot.appointment.management.model.user.UserRole;
 import com.telegrambot.appointment.management.service.staff.HelpService;
 import com.telegrambot.appointment.management.service.staff.MenuService;
 import com.telegrambot.appointment.management.service.staff.RegistrationService;
@@ -25,17 +25,20 @@ public class UpdateRouter {
     private final RegistrationService registrationService;
     private final MenuService menuService;
     private final HelpService helpService;
+    private final AppointmentBookingService bookingService;
 
     public UpdateRouter(UserRoleService userRoleService,
                         StartService startService,
                         RegistrationService registrationService,
                         MenuService menuService,
-                        HelpService helpService) {
+                        HelpService helpService,
+                        AppointmentBookingService bookingService) {
         this.userRoleService = userRoleService;
         this.startService = startService;
         this.registrationService = registrationService;
         this.menuService = menuService;
         this.helpService = helpService;
+        this.bookingService = bookingService;
     }
 
     public void route(Update update, Consumer<SendMessage> sender) {
@@ -76,8 +79,9 @@ public class UpdateRouter {
                 switch (text) {
                     case "/start" -> sender.accept(startService.prepareStartMessage(message));
                     case "/menu" -> sender.accept(menuService.prepareClientMenu(message));
+                    case "/make_appointment" -> sender.accept(bookingService.startBooking(telegramId, chatId));
                     case "/help" -> sender.accept(helpService.prepareHelpForClient(chatId));
-                    // TODO: /appointments
+                    // TODO: /my_appointments
                     default -> sender.accept(new SendMessage(chatId.toString(),
                             "Неизвестная команда. Используйте /help для списка команд."));
                 }
@@ -137,14 +141,13 @@ public class UpdateRouter {
                 }
             }
             case CLIENT -> {
-                switch (data) {
-                    case "APPOINTMENTS_SCHEDULE" -> {
-                        // TODO: запустить флоу записи к специалисту
-                        sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
-                    }
-                    case "APPOINTMENTS_MY" -> {
-                        // TODO: показать список записей клиента
-                        sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                if (data.startsWith("BOOK_") || bookingService.isBooking(telegramId)) {
+                    SendMessage msg = bookingService.handleCallback(telegramId, chatId, data);
+                    sender.accept(msg);
+                } else {
+                    switch (data) {
+                        case "APPOINTMENTS_SCHEDULE" -> sender.accept(bookingService.startBooking(telegramId, chatId));
+                        case "APPOINTMENTS_MY" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
                     }
                 }
             }

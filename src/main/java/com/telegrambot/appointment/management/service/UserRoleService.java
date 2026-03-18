@@ -1,7 +1,7 @@
 package com.telegrambot.appointment.management.service;
 
-import com.telegrambot.appointment.management.model.UserRole;
-import com.telegrambot.appointment.management.model.UserRoleCache;
+import com.telegrambot.appointment.management.model.user.UserRole;
+import com.telegrambot.appointment.management.model.user.UserRoleCache;
 import com.telegrambot.appointment.management.repository.ManagerWhitelistRepository;
 import com.telegrambot.appointment.management.repository.UserRoleCacheRepository;
 import org.slf4j.Logger;
@@ -39,9 +39,7 @@ public class UserRoleService {
         return whitelisted;
     }
 
-    /**
-     * Вызывается из RegistrationService после успешного сохранения пользователя.
-     */
+
     @Transactional
     public void assignRole(Long telegramId, UserRole role) {
         UserRoleCache cache = roleCacheRepository.findByTelegramId(telegramId)

@@ -1,6 +1,6 @@
 package com.telegrambot.appointment.management.model.registration;
 
-import com.telegrambot.appointment.management.model.UserRole;
+import com.telegrambot.appointment.management.model.user.UserRole;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
 import org.springframework.data.redis.core.TimeToLive;

@@ -1,6 +1,6 @@
 package com.telegrambot.appointment.management.repository;
 
-import com.telegrambot.appointment.management.model.UserRoleCache;
+import com.telegrambot.appointment.management.model.user.UserRoleCache;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
