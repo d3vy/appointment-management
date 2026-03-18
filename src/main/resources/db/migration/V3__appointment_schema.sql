@@ -1,16 +1,54 @@
--- V3: appointment schema
--- Добавляет duration_minutes в services, перестраивает связь specialist-service на many-to-many,
--- создаёт таблицы schedules, schedule_slots, appointments.
+CREATE SCHEMA IF NOT EXISTS client;
+CREATE SCHEMA IF NOT EXISTS manager;
+CREATE SCHEMA IF NOT EXISTS specialist;
+CREATE SCHEMA IF NOT EXISTS service;
 
--- 1. Добавить duration_minutes в services
-ALTER TABLE service.services
-    ADD COLUMN IF NOT EXISTS duration_minutes INTEGER NOT NULL DEFAULT 60;
+CREATE TABLE IF NOT EXISTS client.clients
+(
+    id           SERIAL PRIMARY KEY,
+    telegram_id  BIGINT       NOT NULL UNIQUE,
+    username     VARCHAR(255) UNIQUE,
+    firstname    VARCHAR(255),
+    lastname     VARCHAR(255),
+    phone_number VARCHAR(255) UNIQUE
+);
 
--- 2. Убрать старый service_id из specialists (если он есть)
+CREATE TABLE IF NOT EXISTS manager.managers
+(
+    id           SERIAL PRIMARY KEY,
+    telegram_id  BIGINT       NOT NULL UNIQUE,
+    username     VARCHAR(255) UNIQUE,
+    firstname    VARCHAR(255),
+    lastname     VARCHAR(255),
+    phone_number VARCHAR(255) UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS manager.manager_whitelist
+(
+    username VARCHAR(255) PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS specialist.specialists
+(
+    id           SERIAL PRIMARY KEY,
+    telegram_id  BIGINT       NOT NULL UNIQUE,
+    username     VARCHAR(255) UNIQUE,
+    firstname    VARCHAR(255),
+    lastname     VARCHAR(255),
+    phone_number VARCHAR(255) UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS service.services
+(
+    id               SERIAL PRIMARY KEY,
+    name             VARCHAR(255) NOT NULL,
+    price            NUMERIC      NOT NULL,
+    duration_minutes INTEGER      NOT NULL DEFAULT 60
+);
+
 ALTER TABLE specialist.specialists
     DROP COLUMN IF EXISTS service_id;
 
--- 3. Связующая таблица specialist <-> service (many-to-many)
 CREATE TABLE IF NOT EXISTS specialist.specialist_services
 (
     specialist_id INTEGER NOT NULL,
@@ -20,33 +58,30 @@ CREATE TABLE IF NOT EXISTS specialist.specialist_services
     CONSTRAINT fk_ss_service    FOREIGN KEY (service_id)    REFERENCES service.services (id)       ON DELETE CASCADE
 );
 
--- 4. Расписание специалиста (один день = одна запись)
 CREATE TABLE IF NOT EXISTS specialist.schedules
 (
     id                    SERIAL PRIMARY KEY,
-    specialist_id         INTEGER  NOT NULL,
-    date                  DATE     NOT NULL,
-    created_by_manager_id INTEGER  NOT NULL,
+    specialist_id         INTEGER NOT NULL,
+    date                  DATE    NOT NULL,
+    created_by_manager_id INTEGER NOT NULL,
     CONSTRAINT uq_schedule_specialist_date UNIQUE (specialist_id, date),
     CONSTRAINT fk_schedule_specialist FOREIGN KEY (specialist_id)         REFERENCES specialist.specialists (id) ON DELETE CASCADE,
     CONSTRAINT fk_schedule_manager   FOREIGN KEY (created_by_manager_id) REFERENCES manager.managers (id)
 );
 
--- 5. Временные слоты внутри дня
 CREATE TABLE IF NOT EXISTS specialist.schedule_slots
 (
     id          SERIAL PRIMARY KEY,
-    schedule_id INTEGER     NOT NULL,
-    start_time  TIME        NOT NULL,
-    end_time    TIME        NOT NULL,
-    is_booked   BOOLEAN     NOT NULL DEFAULT FALSE,
+    schedule_id INTEGER NOT NULL,
+    start_time  TIME    NOT NULL,
+    end_time    TIME    NOT NULL,
+    is_booked   BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_slot_schedule FOREIGN KEY (schedule_id) REFERENCES specialist.schedules (id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_slots_schedule_booked
     ON specialist.schedule_slots (schedule_id, is_booked);
 
--- 6. Записи клиентов
 CREATE TABLE IF NOT EXISTS client.appointments
 (
     id            SERIAL PRIMARY KEY,

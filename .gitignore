@@ -8,10 +8,6 @@ target/
 .env
 *.env
 
-# Config files with potential secrets
-*.yml
-*.yaml
-
 ### STS ###
 .apt_generated
 .classpath

@@ -1,7 +1,3 @@
--- Таблица для быстрого определения роли пользователя.
--- Заменяет 3 последовательных existsBy-запроса (Client/Specialist/Manager)
--- на один SELECT по telegram_id.
-
 CREATE TABLE IF NOT EXISTS public.user_roles
 (
     telegram_id BIGINT      NOT NULL,
