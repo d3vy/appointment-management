@@ -1,6 +1,7 @@
 package com.telegrambot.appointment.management.service;
 
 import com.telegrambot.appointment.management.model.UserRole;
+import com.telegrambot.appointment.management.service.staff.HelpService;
 import com.telegrambot.appointment.management.service.staff.MenuService;
 import com.telegrambot.appointment.management.service.staff.RegistrationService;
 import com.telegrambot.appointment.management.service.staff.StartService;
@@ -13,13 +14,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.function.Consumer;
 
-/**
- * Роутинг входящих Telegram-обновлений по роли пользователя.
- * Выделен из старого God-класса MainService.
- *
- * Добавить новую роль или команду — добавить case здесь,
- * AppointmentBot трогать не нужно.
- */
+
 @Service
 public class UpdateRouter {
 
@@ -29,15 +24,18 @@ public class UpdateRouter {
     private final StartService startService;
     private final RegistrationService registrationService;
     private final MenuService menuService;
+    private final HelpService helpService;
 
     public UpdateRouter(UserRoleService userRoleService,
                         StartService startService,
                         RegistrationService registrationService,
-                        MenuService menuService) {
+                        MenuService menuService,
+                        HelpService helpService) {
         this.userRoleService = userRoleService;
         this.startService = startService;
         this.registrationService = registrationService;
         this.menuService = menuService;
+        this.helpService = helpService;
     }
 
     public void route(Update update, Consumer<SendMessage> sender) {
@@ -48,43 +46,61 @@ public class UpdateRouter {
         }
     }
 
-    // ---- Text messages ----
 
     private void handleMessage(Message message, Consumer<SendMessage> sender) {
         Long telegramId = message.getFrom().getId();
         Long chatId = message.getChatId();
         String text = message.getText();
-        String username = message.getFrom().getUserName(); // может быть null
+        String username = message.getFrom().getUserName();
 
         UserRole role = userRoleService.defineUserRoleByTelegramId(telegramId);
         log.debug("Message: telegramId={}, role={}, text={}", telegramId, role, text);
 
         switch (role) {
             case NOT_REGISTERED -> {
-                if ("/start".equals(text)) {
-                    sender.accept(startService.prepareStartMessage(message));
-                } else if (registrationService.isRegistering(telegramId)) {
-                    SendMessage msg = registrationService.handleMessage(telegramId, chatId, text);
-                    if (msg != null) sender.accept(msg);
-                } else {
-                    sender.accept(new SendMessage(chatId.toString(), "Сначала зарегистрируйтесь"));
+                switch (text) {
+                    case "/start" -> sender.accept(startService.prepareStartMessage(message));
+                    case "/help" -> sender.accept(helpService.prepareHelpForUnregistered(chatId));
+                    default -> {
+                        if (registrationService.isRegistering(telegramId)) {
+                            SendMessage msg = registrationService.handleMessage(telegramId, chatId, text);
+                            if (msg != null) sender.accept(msg);
+                        } else {
+                            sender.accept(new SendMessage(chatId.toString(),
+                                    "Сначала зарегистрируйтесь. Нажмите /start"));
+                        }
+                    }
                 }
             }
             case CLIENT -> {
-                if ("/start".equals(text)) {
-                    sender.accept(startService.prepareStartMessage(message));
-                } else if ("/menu".equals(text)) {
-                    sender.accept(menuService.prepareMenuMessage(message));
+                switch (text) {
+                    case "/start" -> sender.accept(startService.prepareStartMessage(message));
+                    case "/menu" -> sender.accept(menuService.prepareClientMenu(message));
+                    case "/help" -> sender.accept(helpService.prepareHelpForClient(chatId));
+                    // TODO: /appointments
+                    default -> sender.accept(new SendMessage(chatId.toString(),
+                            "Неизвестная команда. Используйте /help для списка команд."));
                 }
-                // TODO: добавить команды клиента
             }
             case SPECIALIST -> {
-                // TODO: команды специалиста
-                log.debug("Specialist handler not implemented: telegramId={}", telegramId);
+                switch (text) {
+                    case "/start" -> sender.accept(startService.prepareStartMessage(message));
+                    case "/menu" -> sender.accept(menuService.prepareSpecialistMenu(message));
+                    case "/help" -> sender.accept(helpService.prepareHelpForSpecialist(chatId));
+                    // TODO: /schedule, /appointments
+                    default -> sender.accept(new SendMessage(chatId.toString(),
+                            "Неизвестная команда. Используйте /help для списка команд."));
+                }
             }
             case MANAGER -> {
-                // TODO: команды менеджера
-                log.debug("Manager handler not implemented: telegramId={}", telegramId);
+                switch (text) {
+                    case "/start" -> sender.accept(startService.prepareStartMessage(message));
+                    case "/menu" -> sender.accept(menuService.prepareManagerMenu(message));
+                    case "/help" -> sender.accept(helpService.prepareHelpForManager(chatId));
+                    // TODO: /specialists, /schedule
+                    default -> sender.accept(new SendMessage(chatId.toString(),
+                            "Неизвестная команда. Используйте /help для списка команд."));
+                }
             }
         }
     }
@@ -121,13 +137,40 @@ public class UpdateRouter {
                 }
             }
             case CLIENT -> {
-                // TODO: callback'и клиента
+                switch (data) {
+                    case "APPOINTMENTS_SCHEDULE" -> {
+                        // TODO: запустить флоу записи к специалисту
+                        sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    }
+                    case "APPOINTMENTS_MY" -> {
+                        // TODO: показать список записей клиента
+                        sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    }
+                }
             }
             case SPECIALIST -> {
-                // TODO: callback'и специалиста
+                switch (data) {
+                    case "SPECIALIST_SCHEDULE" -> {
+                        // TODO: показать расписание специалиста
+                        sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    }
+                    case "SPECIALIST_APPOINTMENTS" -> {
+                        // TODO: показать записи специалиста
+                        sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    }
+                }
             }
             case MANAGER -> {
-                // TODO: callback'и менеджера
+                switch (data) {
+                    case "MANAGER_SPECIALISTS" -> {
+                        // TODO: управление специалистами
+                        sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    }
+                    case "MANAGER_SCHEDULE" -> {
+                        // TODO: расписание всех специалистов
+                        sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    }
+                }
             }
         }
     }

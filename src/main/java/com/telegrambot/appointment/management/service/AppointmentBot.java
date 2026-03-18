@@ -9,15 +9,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-/**
- * Тонкая обёртка над TelegramLongPollingBot.
- * Ответственность:
- *   1. Предоставить credentials SDK.
- *   2. Принять update и передать в UpdateRouter.
- *   3. Отправить исходящее сообщение.
- *
- * Вся бизнес-логика, роутинг и команды — в UpdateRouter.
- */
 @Service
 public class AppointmentBot extends TelegramLongPollingBot {
 

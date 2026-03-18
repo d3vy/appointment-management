@@ -23,9 +23,7 @@ public class UserRoleService {
         this.whitelistRepository = whitelistRepository;
     }
 
-    /**
-     * Один запрос в БД вместо прежних трёх последовательных existsBy.
-     */
+
     @Transactional(readOnly = true)
     public UserRole defineUserRoleByTelegramId(Long telegramId) {
         return roleCacheRepository.findByTelegramId(telegramId)

@@ -7,9 +7,6 @@ import jakarta.persistence.*;
 @Table(schema = "specialist", name = "specialists")
 public class Specialist extends User {
 
-    // lastname унаследован от User — НЕ переобъявлять здесь.
-    // Дублирование поля вызывает конфликт маппинга JPA.
-
     @ManyToOne
     @JoinColumn(name = "service_id")
     private Service service;

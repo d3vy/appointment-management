@@ -12,18 +12,57 @@ import java.util.List;
 @Service
 public class MenuService {
 
-    public SendMessage prepareMenuMessage(Message message) {
-        String text = EmojiParser.parseToUnicode("Menu 📋");
+    public SendMessage prepareClientMenu(Message message) {
+        String text = EmojiParser.parseToUnicode("Меню клиента 📋");
 
-        InlineKeyboardButton registerButton = new InlineKeyboardButton();
-        registerButton.setText("Регистрация");
-        registerButton.setCallbackData("REGISTER");
+        InlineKeyboardButton scheduleAppointment = button("📅 Записаться", "APPOINTMENTS_SCHEDULE");
+        InlineKeyboardButton myAppointments     = button("📋 Мои записи", "APPOINTMENTS_MY");
 
-        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup(
-                List.of(List.of(registerButton))
-        );
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup(List.of(
+                List.of(scheduleAppointment),
+                List.of(myAppointments)
+        ));
 
-        SendMessage msg = new SendMessage(message.getChatId().toString(), text);
+        return buildMessage(message.getChatId(), text, keyboard);
+    }
+
+    public SendMessage prepareManagerMenu(Message message) {
+        String text = EmojiParser.parseToUnicode("Меню менеджера 🗂");
+
+        InlineKeyboardButton specialists = button("👤 Специалисты", "MANAGER_SPECIALISTS");
+        InlineKeyboardButton schedule    = button("📆 Расписание",  "MANAGER_SCHEDULE");
+
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup(List.of(
+                List.of(specialists),
+                List.of(schedule)
+        ));
+
+        return buildMessage(message.getChatId(), text, keyboard);
+    }
+
+    public SendMessage prepareSpecialistMenu(Message message) {
+        String text = EmojiParser.parseToUnicode("Меню специалиста 🛠");
+
+        InlineKeyboardButton schedule     = button("📆 Моё расписание", "SPECIALIST_SCHEDULE");
+        InlineKeyboardButton appointments = button("📋 Мои записи",     "SPECIALIST_APPOINTMENTS");
+
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup(List.of(
+                List.of(schedule),
+                List.of(appointments)
+        ));
+
+        return buildMessage(message.getChatId(), text, keyboard);
+    }
+
+    private InlineKeyboardButton button(String text, String callbackData) {
+        InlineKeyboardButton btn = new InlineKeyboardButton();
+        btn.setText(text);
+        btn.setCallbackData(callbackData);
+        return btn;
+    }
+
+    private SendMessage buildMessage(Long chatId, String text, InlineKeyboardMarkup keyboard) {
+        SendMessage msg = new SendMessage(chatId.toString(), text);
         msg.setReplyMarkup(keyboard);
         return msg;
     }

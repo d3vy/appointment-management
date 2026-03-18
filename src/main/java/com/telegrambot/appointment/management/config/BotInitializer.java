@@ -16,9 +16,11 @@ public class BotInitializer {
     private static final Logger log = LoggerFactory.getLogger(BotInitializer.class);
 
     private final AppointmentBot bot;
+    private final BotCommandsRegistry commandsRegistry;
 
-    public BotInitializer(AppointmentBot bot) {
+    public BotInitializer(AppointmentBot bot, BotCommandsRegistry commandsRegistry) {
         this.bot = bot;
+        this.commandsRegistry = commandsRegistry;
     }
 
     @EventListener(ContextRefreshedEvent.class)
@@ -27,6 +29,8 @@ public class BotInitializer {
             TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
             telegramBotsApi.registerBot(bot);
             log.info("Telegram bot registered successfully");
+
+            commandsRegistry.registerDefaultCommands(bot);
         } catch (TelegramApiException e) {
             log.error("Failed to register Telegram bot", e);
         }

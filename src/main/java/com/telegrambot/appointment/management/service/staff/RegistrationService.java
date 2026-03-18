@@ -162,10 +162,6 @@ public class RegistrationService {
 
     // ---- Private helpers ----
 
-    /**
-     * Username в Telegram необязателен. Если null — используем telegramId как fallback,
-     * чтобы не нарушать unique constraint на поле username.
-     */
     private String resolveUsername(Long telegramId, String username) {
         return (username != null && !username.isBlank()) ? username : telegramId.toString();
     }

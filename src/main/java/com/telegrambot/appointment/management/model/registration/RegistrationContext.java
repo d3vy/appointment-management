@@ -7,14 +7,6 @@ import org.springframework.data.redis.core.TimeToLive;
 
 import java.io.Serializable;
 
-/**
- * Временное состояние регистрации — хранится в Redis с TTL 30 минут.
- *
- * Раньше хранилось в PostgreSQL, что было излишним:
- * 1. Эти данные никогда не джойнятся с другими таблицами.
- * 2. Брошенные регистрации никогда не очищались.
- * 3. Redis TTL делает очистку автоматически.
- */
 @RedisHash("registration_context")
 public class RegistrationContext implements Serializable {
 

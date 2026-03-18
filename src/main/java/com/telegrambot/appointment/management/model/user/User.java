@@ -12,8 +12,6 @@ public class User {
     @Column(unique = true, nullable = false)
     private Long telegramId;
 
-    // username — необязательное поле в Telegram.
-    // Если пользователь не установил username, сохраняем telegramId.toString().
     @Column(unique = true)
     private String username;
 
