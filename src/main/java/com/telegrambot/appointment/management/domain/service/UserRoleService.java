@@ -34,11 +34,20 @@ public class UserRoleService {
                 .orElse(UserRole.NOT_REGISTERED);
     }
 
+
     @Transactional(readOnly = true)
     public boolean isManagerWhitelisted(String username) {
         if (username == null || username.isBlank()) return false;
         boolean whitelisted = managerWhitelistRepository.existsByUsernameIgnoreCase(username);
         log.debug("Whitelist check username={}: {}", username, whitelisted);
+        return whitelisted;
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isSpecialistWhitelisted(String username) {
+        if (username == null || username.isBlank()) return false;
+        boolean whitelisted = specialistWhitelistRepository.existsByUsernameIgnoreCase(username);
+        log.debug("Specialist whitelist check username={}: {}", username, whitelisted);
         return whitelisted;
     }
 

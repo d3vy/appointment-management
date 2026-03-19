@@ -5,10 +5,12 @@ import com.telegrambot.appointment.management.domain.model.registration.Registra
 import com.telegrambot.appointment.management.domain.model.user.client.Client;
 import com.telegrambot.appointment.management.domain.model.user.manager.Manager;
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
+import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
 import com.telegrambot.appointment.management.domain.service.UserRoleService;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.client.ClientRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.RegistrationContextRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -29,15 +31,18 @@ public class RegistrationHandler {
     private final ManagerRepository managerRepository;
     private final RegistrationContextRepository contextRepository;
     private final UserRoleService userRoleService;
+    private final SpecialistRepository specialistRepository;
 
     public RegistrationHandler(ClientRepository clientRepository,
-                                ManagerRepository managerRepository,
-                                RegistrationContextRepository contextRepository,
-                                UserRoleService userRoleService) {
+                               ManagerRepository managerRepository,
+                               RegistrationContextRepository contextRepository,
+                               UserRoleService userRoleService,
+                               SpecialistRepository specialistRepository) {
         this.clientRepository = clientRepository;
         this.managerRepository = managerRepository;
         this.contextRepository = contextRepository;
         this.userRoleService = userRoleService;
+        this.specialistRepository = specialistRepository;
     }
 
     public SendMessage startClientRegistration(Long telegramId, Long chatId, String username) {
@@ -122,6 +127,31 @@ public class RegistrationHandler {
                 log.info("Manager registered: telegramId={}", telegramId);
                 yield new SendMessage(chatId.toString(), "✅ Профиль менеджера создан!");
             }
+
+            case SPECIALIST_ENTER_FIRSTNAME -> {
+                context.setFirstname(messageText.trim());
+                context.setStep(RegistrationStep.SPECIALIST_ENTER_LASTNAME);
+                contextRepository.save(context);
+                yield prepareAskLastnameMessage(chatId, "BACK_TO_SPECIALIST_FIRSTNAME");
+            }
+            case SPECIALIST_ENTER_LASTNAME -> {
+                context.setLastname(messageText.trim());
+                context.setStep(RegistrationStep.SPECIALIST_ENTER_NUMBER);
+                contextRepository.save(context);
+                yield prepareAskNumberMessage(chatId, "BACK_TO_SPECIALIST_LASTNAME");
+            }
+            case SPECIALIST_ENTER_NUMBER -> {
+                if (!isValidPhone(messageText)) {
+                    yield new SendMessage(chatId.toString(),
+                            "❌ Неверный формат. Введите номер в формате +79991234567 или 89991234567");
+                }
+                context.setNumber(messageText.trim());
+                saveSpecialist(telegramId, context);
+                contextRepository.deleteById(telegramId);
+                userRoleService.assignRole(telegramId, UserRole.SPECIALIST);
+                log.info("Specialist registered: telegramId={}", telegramId);
+                yield new SendMessage(chatId.toString(), "✅ Профиль специалиста создан!");
+            }
             default -> {
                 log.warn("Unexpected step={} for telegramId={}", context.getStep(), telegramId);
                 yield null;
@@ -157,6 +187,19 @@ public class RegistrationHandler {
                 context.setStep(RegistrationStep.MANAGER_ENTER_LASTNAME);
                 contextRepository.save(context);
                 yield prepareAskLastnameMessage(chatId, "BACK_TO_MANAGER_FIRSTNAME");
+            }
+
+            case "BACK_TO_SPECIALIST_FIRSTNAME" -> {
+                context.setLastname(null);
+                context.setStep(RegistrationStep.SPECIALIST_ENTER_FIRSTNAME);
+                contextRepository.save(context);
+                yield new SendMessage(chatId.toString(), "Введите ваше имя:");
+            }
+            case "BACK_TO_SPECIALIST_LASTNAME" -> {
+                context.setNumber(null);
+                context.setStep(RegistrationStep.SPECIALIST_ENTER_LASTNAME);
+                contextRepository.save(context);
+                yield prepareAskLastnameMessage(chatId, "BACK_TO_SPECIALIST_FIRSTNAME");
             }
             default -> null;
         };
@@ -205,6 +248,17 @@ public class RegistrationHandler {
         managerRepository.save(manager);
     }
 
+    @Transactional
+    protected void saveSpecialist(Long telegramId, RegistrationContext context) {
+        Specialist specialist = new Specialist();
+        specialist.setTelegramId(telegramId);
+        specialist.setFirstname(context.getFirstname());
+        specialist.setLastname(context.getLastname());
+        specialist.setPhoneNumber(context.getNumber());
+        specialist.setUsername(context.getUsername());
+        specialistRepository.save(specialist);
+    }
+
     private SendMessage prepareAskLastnameMessage(Long chatId, String backCallback) {
         SendMessage message = new SendMessage(chatId.toString(), "Введите вашу фамилию:");
         message.setReplyMarkup(buildBackKeyboard(backCallback));
@@ -224,4 +278,5 @@ public class RegistrationHandler {
         back.setCallbackData(callbackData);
         return new InlineKeyboardMarkup(List.of(List.of(back)));
     }
+
 }

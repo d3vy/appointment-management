@@ -130,15 +130,25 @@ public class UpdateRouter {
             case NOT_REGISTERED -> {
                 switch (data) {
                     case "REGISTER" -> {
-                        boolean whitelisted = userRoleService.isManagerWhitelisted(username);
-                        log.info("REGISTER: telegramId={}, username={}, whitelisted={}", telegramId, username, whitelisted);
-                        SendMessage msg = whitelisted
-                                ? registrationHandler.startManagerRegistration(telegramId, chatId, username)
-                                : registrationHandler.startClientRegistration(telegramId, chatId, username);
+                        boolean managerWhitelisted = userRoleService.isManagerWhitelisted(username);
+                        boolean specialistWhitelisted = userRoleService.isSpecialistWhitelisted(username);
+                        log.info("REGISTER: telegramId={}, username={}, manager={}, specialist={}",
+                                telegramId, username, managerWhitelisted, specialistWhitelisted);
+
+                        SendMessage msg;
+                        if (managerWhitelisted) {
+                            msg = registrationHandler.startManagerRegistration(telegramId, chatId, username);
+                        } else if (specialistWhitelisted) {
+                            msg = registrationHandler.startSpecialistRegistration(telegramId, chatId, username);
+                        } else {
+                            msg = registrationHandler.startClientRegistration(telegramId, chatId, username);
+                        }
+
                         sender.accept(msg);
                     }
                     case "BACK_TO_FIRSTNAME", "BACK_TO_LASTNAME",
-                         "BACK_TO_MANAGER_FIRSTNAME", "BACK_TO_MANAGER_LASTNAME" -> {
+                         "BACK_TO_MANAGER_FIRSTNAME", "BACK_TO_MANAGER_LASTNAME",
+                         "BACK_TO_SPECIALIST_FIRSTNAME", "BACK_TO_SPECIALIST_LASTNAME" -> {
                         SendMessage msg = registrationHandler.handleBackCallback(telegramId, chatId, data);
                         if (msg != null) sender.accept(msg);
                     }
