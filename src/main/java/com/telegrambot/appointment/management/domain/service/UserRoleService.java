@@ -3,6 +3,7 @@ package com.telegrambot.appointment.management.domain.service;
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.model.user.UserRoleCache;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.ManagerWhitelistRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.SpecialistWhitelistRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.UserRoleCacheRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,12 +16,15 @@ public class UserRoleService {
     private static final Logger log = LoggerFactory.getLogger(UserRoleService.class);
 
     private final UserRoleCacheRepository roleCacheRepository;
-    private final ManagerWhitelistRepository whitelistRepository;
+    private final ManagerWhitelistRepository managerWhitelistRepository;
+    private final SpecialistWhitelistRepository specialistWhitelistRepository;
 
     public UserRoleService(UserRoleCacheRepository roleCacheRepository,
-                           ManagerWhitelistRepository whitelistRepository) {
+                           ManagerWhitelistRepository managerWhitelistRepository,
+                           SpecialistWhitelistRepository specialistWhitelistRepository) {
         this.roleCacheRepository = roleCacheRepository;
-        this.whitelistRepository = whitelistRepository;
+        this.managerWhitelistRepository = managerWhitelistRepository;
+        this.specialistWhitelistRepository = specialistWhitelistRepository;
     }
 
     @Transactional(readOnly = true)
@@ -33,7 +37,7 @@ public class UserRoleService {
     @Transactional(readOnly = true)
     public boolean isManagerWhitelisted(String username) {
         if (username == null || username.isBlank()) return false;
-        boolean whitelisted = whitelistRepository.existsByUsernameIgnoreCase(username);
+        boolean whitelisted = managerWhitelistRepository.existsByUsernameIgnoreCase(username);
         log.debug("Whitelist check username={}: {}", username, whitelisted);
         return whitelisted;
     }

@@ -63,7 +63,7 @@ public class UpdateRouter {
             case NOT_REGISTERED -> {
                 switch (text) {
                     case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
-                    case "/help"  -> sender.accept(helpHandler.prepareHelpForUnregistered(chatId));
+                    case "/help" -> sender.accept(helpHandler.prepareHelpForUnregistered(chatId));
                     default -> {
                         if (registrationHandler.isRegistering(telegramId)) {
                             SendMessage msg = registrationHandler.handleMessage(telegramId, chatId, text);
@@ -77,10 +77,10 @@ public class UpdateRouter {
             }
             case CLIENT -> {
                 switch (text) {
-                    case "/start"            -> sender.accept(startHandler.prepareStartMessage(message));
-                    case "/menu"             -> sender.accept(menuHandler.prepareClientMenu(message));
+                    case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
+                    case "/menu" -> sender.accept(menuHandler.prepareClientMenu(message));
                     case "/make_appointment" -> sender.accept(bookingService.startBooking(telegramId, chatId));
-                    case "/help"             -> sender.accept(helpHandler.prepareHelpForClient(chatId));
+                    case "/help" -> sender.accept(helpHandler.prepareHelpForClient(chatId));
                     default -> sender.accept(new SendMessage(chatId.toString(),
                             "Неизвестная команда. Используйте /help для списка команд."));
                 }
@@ -88,8 +88,8 @@ public class UpdateRouter {
             case SPECIALIST -> {
                 switch (text) {
                     case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
-                    case "/menu"  -> sender.accept(menuHandler.prepareSpecialistMenu(message));
-                    case "/help"  -> sender.accept(helpHandler.prepareHelpForSpecialist(chatId));
+                    case "/menu" -> sender.accept(menuHandler.prepareSpecialistMenu(message));
+                    case "/help" -> sender.accept(helpHandler.prepareHelpForSpecialist(chatId));
                     default -> sender.accept(new SendMessage(chatId.toString(),
                             "Неизвестная команда. Используйте /help для списка команд."));
                 }
@@ -97,8 +97,8 @@ public class UpdateRouter {
             case MANAGER -> {
                 switch (text) {
                     case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
-                    case "/menu"  -> sender.accept(menuHandler.prepareManagerMenu(message));
-                    case "/help"  -> sender.accept(helpHandler.prepareHelpForManager(chatId));
+                    case "/menu" -> sender.accept(menuHandler.prepareManagerMenu(message));
+                    case "/help" -> sender.accept(helpHandler.prepareHelpForManager(chatId));
                     default -> sender.accept(new SendMessage(chatId.toString(),
                             "Неизвестная команда. Используйте /help для списка команд."));
                 }
@@ -141,20 +141,21 @@ public class UpdateRouter {
                 } else {
                     switch (data) {
                         case "APPOINTMENTS_SCHEDULE" -> sender.accept(bookingService.startBooking(telegramId, chatId));
-                        case "APPOINTMENTS_MY"       -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                        case "APPOINTMENTS_MY" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
                     }
                 }
             }
             case SPECIALIST -> {
                 switch (data) {
-                    case "SPECIALIST_SCHEDULE"     -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
-                    case "SPECIALIST_APPOINTMENTS" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    case "SPECIALIST_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    case "SPECIALIST_APPOINTMENTS" ->
+                            sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
                 }
             }
             case MANAGER -> {
                 switch (data) {
                     case "MANAGER_SPECIALISTS" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
-                    case "MANAGER_SCHEDULE"    -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    case "MANAGER_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
                 }
             }
         }
