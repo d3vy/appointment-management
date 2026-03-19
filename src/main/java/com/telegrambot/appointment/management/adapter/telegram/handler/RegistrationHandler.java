@@ -10,7 +10,9 @@ import com.telegrambot.appointment.management.domain.service.UserRoleService;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.client.ClientRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.RegistrationContextRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerWhitelistRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistWhitelistRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -32,17 +34,23 @@ public class RegistrationHandler {
     private final RegistrationContextRepository contextRepository;
     private final UserRoleService userRoleService;
     private final SpecialistRepository specialistRepository;
+    private final SpecialistWhitelistRepository specialistWhitelistRepository;
+    private final ManagerWhitelistRepository managerWhitelistRepository;
 
     public RegistrationHandler(ClientRepository clientRepository,
                                ManagerRepository managerRepository,
                                RegistrationContextRepository contextRepository,
                                UserRoleService userRoleService,
-                               SpecialistRepository specialistRepository) {
+                               SpecialistRepository specialistRepository,
+                               SpecialistWhitelistRepository specialistWhitelistRepository,
+                               ManagerWhitelistRepository managerWhitelistRepository) {
         this.clientRepository = clientRepository;
         this.managerRepository = managerRepository;
         this.contextRepository = contextRepository;
         this.userRoleService = userRoleService;
         this.specialistRepository = specialistRepository;
+        this.specialistWhitelistRepository = specialistWhitelistRepository;
+        this.managerWhitelistRepository = managerWhitelistRepository;
     }
 
     public SendMessage startClientRegistration(Long telegramId, Long chatId, String username) {
@@ -246,6 +254,8 @@ public class RegistrationHandler {
         manager.setPhoneNumber(context.getNumber());
         manager.setUsername(context.getUsername());
         managerRepository.save(manager);
+        managerWhitelistRepository.deleteById(context.getUsername());
+        log.info("Manager registered and removed from whitelist: username={}", context.getUsername());
     }
 
     @Transactional
@@ -257,6 +267,8 @@ public class RegistrationHandler {
         specialist.setPhoneNumber(context.getNumber());
         specialist.setUsername(context.getUsername());
         specialistRepository.save(specialist);
+        specialistWhitelistRepository.deleteById(context.getUsername());
+        log.info("Specialist registered and removed from whitelist: username={}", context.getUsername());
     }
 
     private SendMessage prepareAskLastnameMessage(Long chatId, String backCallback) {
