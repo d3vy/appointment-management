@@ -97,6 +97,39 @@ public class AppointmentBookingService {
         return bookingContextRepository.existsById(telegramId);
     }
 
+    @Transactional(readOnly = true)
+    public SendMessage buildClientAppointmentsMessage(Long telegramId, Long chatId) {
+        Client client = clientRepository.findByTelegramId(telegramId)
+                .orElseThrow(() -> new IllegalStateException("Client not found: " + telegramId));
+
+        List<Appointment> appointments = appointmentRepository.findByClientIdAndStatus(
+                client.getId(), AppointmentStatus.CONFIRMED);
+
+        if (appointments.isEmpty()) {
+            return new SendMessage(chatId.toString(), "📋 У вас нет активных записей.");
+        }
+
+        StringBuilder text = new StringBuilder("📋 *Ваши записи* (")
+                .append(appointments.size()).append("):\n\n");
+
+        for (int i = 0; i < appointments.size(); i++) {
+            Appointment appointment = appointments.get(i);
+            ScheduleSlot slot = appointment.getSlot();
+            text.append(i + 1).append(". ")
+                    .append(slot.getSchedule().getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")))
+                    .append(" в ").append(slot.getStartTime().format(TIME_FMT))
+                    .append("\n   👤 ").append(appointment.getSpecialist().getFirstname())
+                    .append(" ").append(appointment.getSpecialist().getLastname())
+                    .append("\n   💈 ").append(appointment.getService().getName())
+                    .append(" — ").append(appointment.getService().getPrice().toPlainString()).append(" ₽")
+                    .append("\n\n");
+        }
+
+        SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
+        message.setParseMode("Markdown");
+        return message;
+    }
+
     private SendMessage handlePathSelection(BookingContext context, Long chatId, String data) {
         return switch (data) {
             case "BOOK_PATH_SERVICE" -> {

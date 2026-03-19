@@ -88,6 +88,8 @@ public class UpdateRouter {
                     case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
                     case "/menu" -> sender.accept(menuHandler.prepareClientMenu(message));
                     case "/make_appointment" -> sender.accept(bookingService.startBooking(telegramId, chatId));
+                    case "/appointments" ->
+                            sender.accept(bookingService.buildClientAppointmentsMessage(telegramId, chatId));
                     case "/help" -> sender.accept(helpHandler.prepareHelpForClient(chatId));
                     default -> sender.accept(new SendMessage(chatId.toString(),
                             "Неизвестная команда. Используйте /help для списка команд."));
@@ -164,20 +166,23 @@ public class UpdateRouter {
                 } else {
                     switch (data) {
                         case "APPOINTMENTS_SCHEDULE" -> sender.accept(bookingService.startBooking(telegramId, chatId));
-                        case "APPOINTMENTS_MY" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                        case "APPOINTMENTS_MY" -> sender.accept(bookingService.buildClientAppointmentsMessage(telegramId, chatId));
                     }
                 }
             }
             case SPECIALIST -> {
                 switch (data) {
-                    case "ADD_SPECIALIST_TO_WHITELIST" -> {}
+                    case "ADD_SPECIALIST_TO_WHITELIST" -> {
+                    }
                     case "SPECIALIST_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
-                    case "SPECIALIST_APPOINTMENTS" -> sender.accept(specialistService.buildAppointmentsMessage(telegramId, chatId));
+                    case "SPECIALIST_APPOINTMENTS" ->
+                            sender.accept(specialistService.buildAppointmentsMessage(telegramId, chatId));
                 }
             }
             case MANAGER -> {
                 switch (data) {
-                    case "MANAGER_ADD_SPECIALIST" -> sender.accept(managerService.startAddSpecialistToWhitelist(telegramId, chatId));
+                    case "MANAGER_ADD_SPECIALIST" ->
+                            sender.accept(managerService.startAddSpecialistToWhitelist(telegramId, chatId));
                     case "MANAGER_SPECIALISTS" -> sender.accept(managerService.buildSpecialistListMessage(chatId));
                     case "MANAGER_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
                 }
