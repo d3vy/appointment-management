@@ -7,6 +7,7 @@ import com.telegrambot.appointment.management.adapter.telegram.handler.StartHand
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.service.AppointmentBookingService;
 import com.telegrambot.appointment.management.domain.service.ManagerService;
+import com.telegrambot.appointment.management.domain.service.SpecialistService;
 import com.telegrambot.appointment.management.domain.service.UserRoleService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ public class UpdateRouter {
     private final HelpHandler helpHandler;
     private final AppointmentBookingService bookingService;
     private final ManagerService managerService;
+    private final SpecialistService specialistService;
 
     public UpdateRouter(UserRoleService userRoleService,
                         StartHandler startHandler,
@@ -36,7 +38,8 @@ public class UpdateRouter {
                         MenuHandler menuHandler,
                         HelpHandler helpHandler,
                         AppointmentBookingService bookingService,
-                        ManagerService managerService) {
+                        ManagerService managerService,
+                        SpecialistService specialistService) {
         this.userRoleService = userRoleService;
         this.startHandler = startHandler;
         this.registrationHandler = registrationHandler;
@@ -44,6 +47,7 @@ public class UpdateRouter {
         this.helpHandler = helpHandler;
         this.bookingService = bookingService;
         this.managerService = managerService;
+        this.specialistService = specialistService;
     }
 
     public void route(Update update, Consumer<SendMessage> sender) {
@@ -168,7 +172,7 @@ public class UpdateRouter {
                 switch (data) {
                     case "ADD_SPECIALIST_TO_WHITELIST" -> {}
                     case "SPECIALIST_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
-                    case "SPECIALIST_APPOINTMENTS" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    case "SPECIALIST_APPOINTMENTS" -> sender.accept(specialistService.buildAppointmentsMessage(telegramId, chatId));
                 }
             }
             case MANAGER -> {
