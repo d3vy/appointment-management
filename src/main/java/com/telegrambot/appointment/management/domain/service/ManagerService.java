@@ -1,21 +1,25 @@
 package com.telegrambot.appointment.management.domain.service;
 
+import com.telegrambot.appointment.management.domain.model.appointment.Service;
 import com.telegrambot.appointment.management.domain.model.user.manager.Manager;
 import com.telegrambot.appointment.management.domain.model.user.manager.ManagerAction;
 import com.telegrambot.appointment.management.domain.model.user.manager.ManagerPendingAction;
 import com.telegrambot.appointment.management.domain.model.user.manager.ManagerWhitelist;
+import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerPendingActionRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerWhitelistRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-@Service
+@org.springframework.stereotype.Service
 public class ManagerService {
 
     private static final Logger log = LoggerFactory.getLogger(ManagerService.class);
@@ -23,13 +27,16 @@ public class ManagerService {
     private final ManagerRepository managerRepository;
     private final ManagerPendingActionRepository pendingActionRepository;
     private final ManagerWhitelistRepository whitelistRepository;
+    private final SpecialistRepository specialistRepository;
 
     public ManagerService(ManagerRepository managerRepository,
                           ManagerPendingActionRepository pendingActionRepository,
-                          ManagerWhitelistRepository whitelistRepository) {
+                          ManagerWhitelistRepository whitelistRepository,
+                          SpecialistRepository specialistRepository) {
         this.managerRepository = managerRepository;
         this.pendingActionRepository = pendingActionRepository;
         this.whitelistRepository = whitelistRepository;
+        this.specialistRepository = specialistRepository;
     }
 
     @Transactional(readOnly = true)
@@ -80,10 +87,33 @@ public class ManagerService {
         return pendingActionRepository.existsById(telegramId);
     }
 
-    @Transactional
-    public void removeFromWhitelist(String username) {
-        whitelistRepository.deleteByUsernameIgnoreCase(username);
-        log.info("Removed username '{}' from specialist whitelist after registration", username);
-    }
+    public SendMessage buildSpecialistListMessage(Long chatId) {
+        List<Specialist> specialists = specialistRepository.findAllWithServices();
+        if (specialists.isEmpty()) {
+            return new SendMessage(chatId.toString(), "👤 Специалистов пока нет.");
+        }
 
+        StringBuilder text = new StringBuilder("👤 *Специалисты* (" + specialists.size() + "):\n\n");
+        for (int i = 0; i < specialists.size(); i++) {
+            Specialist specialist = specialists.get(i);
+            text.append(i + 1).append(". ")
+                    .append(specialist.getFirstname()).append(" ").append(specialist.getLastname())
+                    .append(" (@").append(specialist.getUsername()).append(")\n");
+
+            Set<Service> services = specialist.getServices();
+            if (services.isEmpty()) {
+                text.append("   _услуги не назначены_\n");
+            } else {
+                String serviceNames = services.stream()
+                        .map(Service::getName)
+                        .collect(Collectors.joining(", "));
+                text.append("   💈 ").append(serviceNames).append("\n");
+            }
+            text.append("\n");
+        }
+
+        SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
+        message.setParseMode("Markdown");
+        return message;
+    }
 }

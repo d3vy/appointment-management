@@ -16,4 +16,7 @@ public interface SpecialistRepository extends JpaRepository<Specialist, Integer>
 
     @Query("SELECT s FROM Specialist s JOIN s.services srv WHERE srv.id = :serviceId")
     List<Specialist> findAllByServiceId(@Param("serviceId") Integer serviceId);
+
+    @Query("SELECT s FROM Specialist s LEFT JOIN FETCH s.services ORDER BY s.lastname, s.firstname")
+    List<Specialist> findAllWithServices();
 }

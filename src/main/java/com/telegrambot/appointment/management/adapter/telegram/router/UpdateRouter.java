@@ -168,14 +168,13 @@ public class UpdateRouter {
                 switch (data) {
                     case "ADD_SPECIALIST_TO_WHITELIST" -> {}
                     case "SPECIALIST_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
-                    case "SPECIALIST_APPOINTMENTS" ->
-                            sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    case "SPECIALIST_APPOINTMENTS" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
                 }
             }
             case MANAGER -> {
                 switch (data) {
                     case "MANAGER_ADD_SPECIALIST" -> sender.accept(managerService.startAddSpecialistToWhitelist(telegramId, chatId));
-                    case "MANAGER_SPECIALISTS" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    case "MANAGER_SPECIALISTS" -> sender.accept(managerService.buildSpecialistListMessage(chatId));
                     case "MANAGER_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
                 }
             }
