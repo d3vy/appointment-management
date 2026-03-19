@@ -112,6 +112,8 @@ public class AppointmentBookingService {
         StringBuilder text = new StringBuilder("📋 *Ваши записи* (")
                 .append(appointments.size()).append("):\n\n");
 
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
         for (int i = 0; i < appointments.size(); i++) {
             Appointment appointment = appointments.get(i);
             ScheduleSlot slot = appointment.getSlot();
@@ -123,11 +125,36 @@ public class AppointmentBookingService {
                     .append("\n   💈 ").append(appointment.getService().getName())
                     .append(" — ").append(appointment.getService().getPrice().toPlainString()).append(" ₽")
                     .append("\n\n");
+
+            rows.add(List.of(btn(
+                    "❌ Отменить запись #" + (i + 1),
+                    "CANCEL_APPT_" + appointment.getId()
+            )));
         }
 
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
         message.setParseMode("Markdown");
+        message.setReplyMarkup(new InlineKeyboardMarkup(rows));
         return message;
+    }
+
+    @Transactional
+    public SendMessage cancelAppointment(Long telegramId, Integer appointmentId, Long chatId) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElse(null);
+
+        if (appointment == null || !appointment.getClient().getTelegramId().equals(telegramId)) {
+            return new SendMessage(chatId.toString(), "⚠️ Запись не найдена.");
+        }
+
+        if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
+            return new SendMessage(chatId.toString(), "⚠️ Эта запись уже отменена.");
+        }
+
+        appointment.setStatus(AppointmentStatus.CANCELLED);
+        appointment.getSlot().setBooked(false);
+
+        return new SendMessage(chatId.toString(), "✅ Запись отменена.");
     }
 
     private SendMessage handlePathSelection(BookingContext context, Long chatId, String data) {

@@ -161,14 +161,19 @@ public class UpdateRouter {
                 }
             }
             case CLIENT -> {
-                if (data.startsWith("BOOK_") || bookingService.isBooking(telegramId)) {
+                if (data.startsWith("CANCEL_APPT_")) {
+                    Integer appointmentId = Integer.parseInt(data.replace("CANCEL_APPT_", ""));
+                    sender.accept(bookingService.cancelAppointment(telegramId, appointmentId, chatId));
+                } else if (data.startsWith("BOOK_") || bookingService.isBooking(telegramId)) {
                     sender.accept(bookingService.handleCallback(telegramId, chatId, data));
                 } else {
                     switch (data) {
                         case "APPOINTMENTS_SCHEDULE" -> sender.accept(bookingService.startBooking(telegramId, chatId));
-                        case "APPOINTMENTS_MY" -> sender.accept(bookingService.buildClientAppointmentsMessage(telegramId, chatId));
+                        case "APPOINTMENTS_MY" ->
+                                sender.accept(bookingService.buildClientAppointmentsMessage(telegramId, chatId));
                     }
                 }
+
             }
             case SPECIALIST -> {
                 switch (data) {
