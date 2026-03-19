@@ -2,9 +2,9 @@ package com.telegrambot.appointment.management.domain.service;
 
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.model.user.UserRoleCache;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.ManagerWhitelistRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.SpecialistWhitelistRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.UserRoleCacheRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerWhitelistRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistWhitelistRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.user.UserRoleCacheRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

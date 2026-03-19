@@ -1,7 +1,7 @@
 package com.telegrambot.appointment.management.domain.model.appointment;
 
-import com.telegrambot.appointment.management.domain.model.user.Client;
-import com.telegrambot.appointment.management.domain.model.user.Specialist;
+import com.telegrambot.appointment.management.domain.model.user.client.Client;
+import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
 import jakarta.persistence.*;
 
 @Entity

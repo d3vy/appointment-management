@@ -1,6 +1,7 @@
-package com.telegrambot.appointment.management.domain.model.user;
+package com.telegrambot.appointment.management.domain.model.user.specialist;
 
 import com.telegrambot.appointment.management.domain.model.appointment.Service;
+import com.telegrambot.appointment.management.domain.model.user.User;
 import jakarta.persistence.*;
 
 import java.util.HashSet;

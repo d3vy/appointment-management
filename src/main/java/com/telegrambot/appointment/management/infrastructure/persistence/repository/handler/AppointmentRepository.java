@@ -1,4 +1,4 @@
-package com.telegrambot.appointment.management.infrastructure.persistence.repository;
+package com.telegrambot.appointment.management.infrastructure.persistence.repository.handler;
 
 import com.telegrambot.appointment.management.domain.model.appointment.Appointment;
 import com.telegrambot.appointment.management.domain.model.appointment.AppointmentStatus;

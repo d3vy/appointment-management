@@ -1,7 +1,7 @@
 package com.telegrambot.appointment.management.domain.model.appointment;
 
-import com.telegrambot.appointment.management.domain.model.user.Manager;
-import com.telegrambot.appointment.management.domain.model.user.Specialist;
+import com.telegrambot.appointment.management.domain.model.user.manager.Manager;
+import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;

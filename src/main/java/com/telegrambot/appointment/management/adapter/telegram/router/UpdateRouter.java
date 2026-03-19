@@ -6,6 +6,7 @@ import com.telegrambot.appointment.management.adapter.telegram.handler.Registrat
 import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.service.AppointmentBookingService;
+import com.telegrambot.appointment.management.domain.service.ManagerService;
 import com.telegrambot.appointment.management.domain.service.UserRoleService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,19 +28,22 @@ public class UpdateRouter {
     private final MenuHandler menuHandler;
     private final HelpHandler helpHandler;
     private final AppointmentBookingService bookingService;
+    private final ManagerService managerService;
 
     public UpdateRouter(UserRoleService userRoleService,
                         StartHandler startHandler,
                         RegistrationHandler registrationHandler,
                         MenuHandler menuHandler,
                         HelpHandler helpHandler,
-                        AppointmentBookingService bookingService) {
+                        AppointmentBookingService bookingService,
+                        ManagerService managerService) {
         this.userRoleService = userRoleService;
         this.startHandler = startHandler;
         this.registrationHandler = registrationHandler;
         this.menuHandler = menuHandler;
         this.helpHandler = helpHandler;
         this.bookingService = bookingService;
+        this.managerService = managerService;
     }
 
     public void route(Update update, Consumer<SendMessage> sender) {
@@ -95,6 +99,11 @@ public class UpdateRouter {
                 }
             }
             case MANAGER -> {
+                if (managerService.hasPendingAction(telegramId)) {
+                    SendMessage msg = managerService.handlePendingAction(telegramId, chatId, text);
+                    if (msg != null) sender.accept(msg);
+                    return;
+                }
                 switch (text) {
                     case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
                     case "/menu" -> sender.accept(menuHandler.prepareManagerMenu(message));
@@ -147,6 +156,7 @@ public class UpdateRouter {
             }
             case SPECIALIST -> {
                 switch (data) {
+                    case "ADD_SPECIALIST_TO_WHITELIST" -> {}
                     case "SPECIALIST_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
                     case "SPECIALIST_APPOINTMENTS" ->
                             sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
@@ -154,6 +164,7 @@ public class UpdateRouter {
             }
             case MANAGER -> {
                 switch (data) {
+                    case "MANAGER_ADD_SPECIALIST" -> sender.accept(managerService.startAddSpecialistToWhitelist(telegramId, chatId));
                     case "MANAGER_SPECIALISTS" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
                     case "MANAGER_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
                 }

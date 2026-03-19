@@ -1,10 +1,10 @@
-package com.telegrambot.appointment.management.domain.model.user;
+package com.telegrambot.appointment.management.domain.model.user.specialist;
 
 import jakarta.persistence.*;
 
 @Entity
-@Table(schema = "manager", name = "manager_whitelist")
-public class ManagerWhitelist {
+@Table(schema = "specialist", name = "specialist_whitelist")
+public class SpecialistWhitelist {
 
     @Id
     @Column(name = "username")

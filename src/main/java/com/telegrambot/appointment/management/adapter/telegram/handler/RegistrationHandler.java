@@ -2,13 +2,13 @@ package com.telegrambot.appointment.management.adapter.telegram.handler;
 
 import com.telegrambot.appointment.management.domain.model.registration.RegistrationContext;
 import com.telegrambot.appointment.management.domain.model.registration.RegistrationStep;
-import com.telegrambot.appointment.management.domain.model.user.Client;
-import com.telegrambot.appointment.management.domain.model.user.Manager;
+import com.telegrambot.appointment.management.domain.model.user.client.Client;
+import com.telegrambot.appointment.management.domain.model.user.manager.Manager;
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.service.UserRoleService;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.ClientRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.ManagerRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.RegistrationContextRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.client.ClientRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.RegistrationContextRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

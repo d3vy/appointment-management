@@ -29,11 +29,13 @@ public class MenuHandler {
     public SendMessage prepareManagerMenu(Message message) {
         String text = EmojiParser.parseToUnicode("Меню менеджера 🗂");
 
+        InlineKeyboardButton addSpecialist = button("➕ Добавить специалиста", "MANAGER_ADD_SPECIALIST");
         InlineKeyboardButton specialists = button("👤 Специалисты", "MANAGER_SPECIALISTS");
         InlineKeyboardButton schedule    = button("📆 Расписание",  "MANAGER_SCHEDULE");
 
         SendMessage msg = new SendMessage(message.getChatId().toString(), text);
         msg.setReplyMarkup(new InlineKeyboardMarkup(List.of(
+                List.of(addSpecialist),
                 List.of(specialists),
                 List.of(schedule)
         )));

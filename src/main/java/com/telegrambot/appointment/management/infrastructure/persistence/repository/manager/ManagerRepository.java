@@ -1,6 +1,6 @@
-package com.telegrambot.appointment.management.infrastructure.persistence.repository;
+package com.telegrambot.appointment.management.infrastructure.persistence.repository.manager;
 
-import com.telegrambot.appointment.management.domain.model.user.Manager;
+import com.telegrambot.appointment.management.domain.model.user.manager.Manager;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
