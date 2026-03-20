@@ -12,16 +12,21 @@ import java.util.List;
 @Component
 public class MenuHandler {
 
-    public SendMessage prepareClientMenu(Message message) {
+    public SendMessage prepareClientMenu(Message message, boolean notificationsEnabled) {
         String text = EmojiParser.parseToUnicode("Меню клиента 📋");
 
-        InlineKeyboardButton scheduleAppointment = button("📅 Записаться",  "APPOINTMENTS_SCHEDULE");
-        InlineKeyboardButton myAppointments      = button("📋 Мои записи",  "APPOINTMENTS_MY");
+        InlineKeyboardButton scheduleAppointment = button("📅 Записаться",    "APPOINTMENTS_SCHEDULE");
+        InlineKeyboardButton myAppointments      = button("📋 Мои записи",    "APPOINTMENTS_MY");
+        InlineKeyboardButton notifications       = button(
+                notificationsEnabled ? "🔔 Уведомления: вкл" : "🔕 Уведомления: выкл",
+                "TOGGLE_NOTIFICATIONS"
+        );
 
         SendMessage msg = new SendMessage(message.getChatId().toString(), text);
         msg.setReplyMarkup(new InlineKeyboardMarkup(List.of(
                 List.of(scheduleAppointment),
-                List.of(myAppointments)
+                List.of(myAppointments),
+                List.of(notifications)
         )));
         return msg;
     }

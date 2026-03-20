@@ -27,37 +27,41 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
                                               @Param("status") AppointmentStatus status);
 
     @Query("""
-        SELECT a FROM Appointment a
-        JOIN FETCH a.client c
-        JOIN FETCH a.service srv
-        JOIN FETCH a.slot sl
-        JOIN FETCH sl.schedule sc
-        WHERE a.specialist.id = :specialistId
-          AND a.status = :status
-        ORDER BY sc.date, sl.startTime
-        """)
+            SELECT a FROM Appointment a
+            JOIN FETCH a.client c
+            JOIN FETCH a.service srv
+            JOIN FETCH a.slot sl
+            JOIN FETCH sl.schedule sc
+            WHERE a.specialist.id = :specialistId
+              AND a.status = :status
+            ORDER BY sc.date, sl.startTime
+            """)
     List<Appointment> findBySpecialistIdAndStatus(@Param("specialistId") Integer specialistId,
                                                   @Param("status") AppointmentStatus status);
 
     @Query(value = """
-    SELECT a.* FROM client.appointments a
-    JOIN specialist.schedule_slots sl ON sl.id = a.slot_id
-    JOIN specialist.schedules sc ON sc.id = sl.schedule_id
-    WHERE a.status = 'CONFIRMED'
-      AND a.day_reminder_sent = false
-      AND (sc.date + sl.start_time) BETWEEN :from AND :to
-    """, nativeQuery = true)
+            SELECT a.* FROM client.appointments a
+            JOIN specialist.schedule_slots sl ON sl.id = a.slot_id
+            JOIN specialist.schedules sc ON sc.id = sl.schedule_id
+            JOIN client.clients c ON c.id = a.client_id
+            WHERE a.status = 'CONFIRMED'
+              AND a.day_reminder_sent = false
+              AND c.notifications_enabled = true
+              AND (sc.date + sl.start_time) BETWEEN :from AND :to
+            """, nativeQuery = true)
     List<Appointment> findDueForDayReminder(@Param("from") LocalDateTime from,
                                             @Param("to") LocalDateTime to);
 
     @Query(value = """
-    SELECT a.* FROM client.appointments a
-    JOIN specialist.schedule_slots sl ON sl.id = a.slot_id
-    JOIN specialist.schedules sc ON sc.id = sl.schedule_id
-    WHERE a.status = 'CONFIRMED'
-      AND a.hour_reminder_sent = false
-      AND (sc.date + sl.start_time) BETWEEN :from AND :to
-    """, nativeQuery = true)
+            SELECT a.* FROM client.appointments a
+            JOIN specialist.schedule_slots sl ON sl.id = a.slot_id
+            JOIN specialist.schedules sc ON sc.id = sl.schedule_id
+            JOIN client.clients c ON c.id = a.client_id
+            WHERE a.status = 'CONFIRMED'
+              AND a.hour_reminder_sent = false
+              AND c.notifications_enabled = true
+              AND (sc.date + sl.start_time) BETWEEN :from AND :to
+            """, nativeQuery = true)
     List<Appointment> findDueForHourReminder(@Param("from") LocalDateTime from,
                                              @Param("to") LocalDateTime to);
 }

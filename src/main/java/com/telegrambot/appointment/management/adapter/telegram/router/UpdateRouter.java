@@ -5,10 +5,7 @@ import com.telegrambot.appointment.management.adapter.telegram.handler.MenuHandl
 import com.telegrambot.appointment.management.adapter.telegram.handler.RegistrationHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
-import com.telegrambot.appointment.management.domain.service.AppointmentBookingService;
-import com.telegrambot.appointment.management.domain.service.ManagerService;
-import com.telegrambot.appointment.management.domain.service.SpecialistService;
-import com.telegrambot.appointment.management.domain.service.UserRoleService;
+import com.telegrambot.appointment.management.domain.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -31,6 +28,7 @@ public class UpdateRouter {
     private final AppointmentBookingService bookingService;
     private final ManagerService managerService;
     private final SpecialistService specialistService;
+    private final ClientService clientService;
 
     public UpdateRouter(UserRoleService userRoleService,
                         StartHandler startHandler,
@@ -39,7 +37,8 @@ public class UpdateRouter {
                         HelpHandler helpHandler,
                         AppointmentBookingService bookingService,
                         ManagerService managerService,
-                        SpecialistService specialistService) {
+                        SpecialistService specialistService,
+                        ClientService clientService) {
         this.userRoleService = userRoleService;
         this.startHandler = startHandler;
         this.registrationHandler = registrationHandler;
@@ -48,6 +47,7 @@ public class UpdateRouter {
         this.bookingService = bookingService;
         this.managerService = managerService;
         this.specialistService = specialistService;
+        this.clientService = clientService;
     }
 
     public void route(Update update, Consumer<SendMessage> sender) {
@@ -86,7 +86,8 @@ public class UpdateRouter {
             case CLIENT -> {
                 switch (text) {
                     case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
-                    case "/menu" -> sender.accept(menuHandler.prepareClientMenu(message));
+                    case "/menu" -> sender.accept(menuHandler.prepareClientMenu(message,
+                            clientService.isNotificationsEnabled(telegramId)));
                     case "/make_appointment" -> sender.accept(bookingService.startBooking(telegramId, chatId));
                     case "/appointments" ->
                             sender.accept(bookingService.buildClientAppointmentsMessage(telegramId, chatId));
@@ -171,6 +172,10 @@ public class UpdateRouter {
                         case "APPOINTMENTS_SCHEDULE" -> sender.accept(bookingService.startBooking(telegramId, chatId));
                         case "APPOINTMENTS_MY" ->
                                 sender.accept(bookingService.buildClientAppointmentsMessage(telegramId, chatId));
+                        case "TOGGLE_NOTIFICATIONS" -> {
+                            boolean enabled = clientService.toggleNotifications(telegramId);
+                            sender.accept(menuHandler.prepareClientMenu(message, enabled));
+                        }
                     }
                 }
 
