@@ -32,6 +32,12 @@ public class Appointment {
     @Column(nullable = false)
     private AppointmentStatus status = AppointmentStatus.CONFIRMED;
 
+    @Column(name = "day_reminder_sent", nullable = false)
+    private boolean dayReminderSent = false;
+
+    @Column(name = "hour_reminder_sent", nullable = false)
+    private boolean hourReminderSent = false;
+
     public Appointment() {}
 
     public Integer getId() { return id; }
@@ -46,4 +52,8 @@ public class Appointment {
     public void setSlot(ScheduleSlot slot) { this.slot = slot; }
     public AppointmentStatus getStatus() { return status; }
     public void setStatus(AppointmentStatus status) { this.status = status; }
+    public boolean isDayReminderSent() {return dayReminderSent;}
+    public void setDayReminderSent(boolean dayReminderSent) {this.dayReminderSent = dayReminderSent;}
+    public boolean isHourReminderSent() {return hourReminderSent;}
+    public void setHourReminderSent(boolean hourReminderSent) {this.hourReminderSent = hourReminderSent;}
 }
