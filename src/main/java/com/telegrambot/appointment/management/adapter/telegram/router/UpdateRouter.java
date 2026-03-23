@@ -184,7 +184,7 @@ public class UpdateRouter {
                 switch (data) {
                     case "ADD_SPECIALIST_TO_WHITELIST" -> {
                     }
-                    case "SPECIALIST_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    case "SPECIALIST_SCHEDULE" -> sender.accept(specialistService.buildScheduleMessage(telegramId, chatId));
                     case "SPECIALIST_APPOINTMENTS" ->
                             sender.accept(specialistService.buildAppointmentsMessage(telegramId, chatId));
                 }

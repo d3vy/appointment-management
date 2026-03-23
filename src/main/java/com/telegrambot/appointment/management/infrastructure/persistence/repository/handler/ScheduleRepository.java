@@ -26,5 +26,16 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Integer> {
     List<Schedule> findAvailableBySpecialist(@Param("specialistId") Integer specialistId,
                                              @Param("from") LocalDate from);
 
+    @Query("""
+        SELECT sc FROM Schedule sc
+        LEFT JOIN FETCH sc.slots sl
+        WHERE sc.specialist.id = :specialistId
+          AND sc.date BETWEEN :from AND :to
+        ORDER BY sc.date, sl.startTime
+        """)
+    List<Schedule> findBySpecialistIdWithSlots(@Param("specialistId") Integer specialistId,
+                                               @Param("from") LocalDate from,
+                                               @Param("to") LocalDate to);
+
     Optional<Schedule> findBySpecialistIdAndDate(Integer specialistId, LocalDate date);
 }
