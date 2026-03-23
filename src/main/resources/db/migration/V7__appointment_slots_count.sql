@@ -1,0 +1,2 @@
+ALTER TABLE client.appointments
+    ADD COLUMN IF NOT EXISTS slots_count INTEGER NOT NULL DEFAULT 1;

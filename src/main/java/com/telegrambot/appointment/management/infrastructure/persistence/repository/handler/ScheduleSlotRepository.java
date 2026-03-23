@@ -13,4 +13,21 @@ public interface ScheduleSlotRepository extends JpaRepository<ScheduleSlot, Inte
 
     @Query("SELECT sl FROM ScheduleSlot sl WHERE sl.schedule.id = :scheduleId AND sl.booked = false ORDER BY sl.startTime")
     List<ScheduleSlot> findFreeByScheduleId(@Param("scheduleId") Integer scheduleId);
+
+    @Query("""
+        SELECT sl FROM ScheduleSlot sl
+        WHERE sl.schedule.id = :scheduleId
+        ORDER BY sl.startTime
+        """)
+    List<ScheduleSlot> findAllByScheduleIdOrdered(@Param("scheduleId") Integer scheduleId);
+
+    @Query("""
+        SELECT sl FROM ScheduleSlot sl
+        WHERE sl.schedule.id IN :scheduleIds
+          AND sl.booked = false
+        ORDER BY sl.startTime
+        """)
+    List<ScheduleSlot> findFreeByScheduleIds(@Param("scheduleIds") List<Integer> scheduleIds);
+
+
 }

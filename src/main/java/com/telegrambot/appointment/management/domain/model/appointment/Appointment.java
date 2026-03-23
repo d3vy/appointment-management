@@ -28,6 +28,9 @@ public class Appointment {
     @JoinColumn(name = "slot_id", nullable = false, unique = true)
     private ScheduleSlot slot;
 
+    @Column(name = "slots_count", nullable = false)
+    private int slotsCount = 1;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AppointmentStatus status = AppointmentStatus.CONFIRMED;
@@ -56,4 +59,6 @@ public class Appointment {
     public void setDayReminderSent(boolean dayReminderSent) {this.dayReminderSent = dayReminderSent;}
     public boolean isHourReminderSent() {return hourReminderSent;}
     public void setHourReminderSent(boolean hourReminderSent) {this.hourReminderSent = hourReminderSent;}
+    public int getSlotsCount() {return slotsCount;}
+    public void setSlotsCount(int slotsCount) {this.slotsCount = slotsCount;}
 }

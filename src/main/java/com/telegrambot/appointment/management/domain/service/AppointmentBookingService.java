@@ -17,6 +17,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -140,19 +141,18 @@ public class AppointmentBookingService {
 
     @Transactional
     public SendMessage cancelAppointment(Long telegramId, Integer appointmentId, Long chatId) {
-        Appointment appointment = appointmentRepository.findById(appointmentId)
-                .orElse(null);
+        Appointment appointment = appointmentRepository.findById(appointmentId).orElse(null);
 
         if (appointment == null || !appointment.getClient().getTelegramId().equals(telegramId)) {
             return new SendMessage(chatId.toString(), "⚠️ Запись не найдена.");
         }
-
         if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
             return new SendMessage(chatId.toString(), "⚠️ Эта запись уже отменена.");
         }
 
+        releaseSlots(appointment);
         appointment.setStatus(AppointmentStatus.CANCELLED);
-        appointment.getSlot().setBooked(false);
+        appointmentRepository.save(appointment);
 
         return new SendMessage(chatId.toString(), "✅ Запись отменена.");
     }
@@ -215,7 +215,7 @@ public class AppointmentBookingService {
         context.setSelectedScheduleId(scheduleId);
         context.setStep(BookingStep.SELECT_SLOT);
         bookingContextRepository.save(context);
-        return showAvailableSlots(chatId, scheduleId);
+        return showAvailableSlots(chatId, scheduleId, context.getSelectedServiceId());
     }
 
     private SendMessage handleSlotSelection(BookingContext context, Long chatId, String data) {
@@ -227,6 +227,7 @@ public class AppointmentBookingService {
         return showConfirmation(chatId, context);
     }
 
+    @Transactional
     private SendMessage handleConfirmation(BookingContext context, Long chatId, String data) {
         if (!"BOOK_CONFIRM".equals(data)) return unknownStep(chatId);
 
@@ -234,42 +235,54 @@ public class AppointmentBookingService {
                 .orElseThrow(() -> new IllegalStateException("Client not found: " + context.getTelegramId()));
         Specialist specialist = specialistRepository.findById(context.getSelectedSpecialistId()).orElseThrow();
         Service service = serviceRepository.findById(context.getSelectedServiceId()).orElseThrow();
-        ScheduleSlot slot = slotRepository.findById(context.getSelectedSlotId()).orElseThrow();
 
-        if (slot.isBooked()) {
+        int slotsNeeded = (int) Math.ceil((double) service.getDurationMinutes() / 30);
+        List<ScheduleSlot> allSlots = slotRepository.findAllByScheduleIdOrdered(context.getSelectedScheduleId());
+
+        ScheduleSlot startSlot = allSlots.stream()
+                .filter(s -> s.getId().equals(context.getSelectedSlotId()))
+                .findFirst()
+                .orElseThrow();
+
+        int startIndex = allSlots.indexOf(startSlot);
+        if (!isConsecutiveFreeBlock(allSlots, startIndex, slotsNeeded)) {
             bookingContextRepository.deleteById(context.getTelegramId());
             return new SendMessage(chatId.toString(),
-                    "⚠️ Этот слот уже занят. Попробуйте снова: /make_appointment");
+                    "⚠️ Время уже занято. Попробуйте снова: /menu");
         }
 
-        slot.setBooked(true);
-        slotRepository.save(slot);
+        List<ScheduleSlot> slotsToBook = allSlots.subList(startIndex, startIndex + slotsNeeded);
+        slotsToBook.forEach(s -> s.setBooked(true));
+        slotRepository.saveAll(slotsToBook);
 
         Appointment appointment = new Appointment();
         appointment.setClient(client);
         appointment.setSpecialist(specialist);
         appointment.setService(service);
-        appointment.setSlot(slot);
+        appointment.setSlot(startSlot);
+        appointment.setSlotsCount(slotsNeeded);
         appointment.setStatus(AppointmentStatus.CONFIRMED);
         appointmentRepository.save(appointment);
 
         bookingContextRepository.deleteById(context.getTelegramId());
-        log.info("Appointment created: clientId={}, specialistId={}, slotId={}",
-                client.getId(), specialist.getId(), slot.getId());
+        log.info("Appointment created: clientId={}, specialistId={}, startSlotId={}, slotsCount={}",
+                client.getId(), specialist.getId(), startSlot.getId(), slotsNeeded);
 
+        LocalTime endTime = startSlot.getStartTime().plusMinutes((long) slotsNeeded * 30);
         String text = String.format("""
-                ✅ Запись подтверждена!
-                
-                👤 Специалист: %s %s
-                💈 Услуга: %s
-                📅 Дата: %s
-                🕐 Время: %s
-                💰 Стоимость: %s ₽
-                """,
+            ✅ Запись подтверждена!
+            
+            👤 Специалист: %s %s
+            💈 Услуга: %s
+            📅 Дата: %s
+            🕐 Время: %s – %s
+            💰 Стоимость: %s ₽
+            """,
                 specialist.getFirstname(), specialist.getLastname(),
                 service.getName(),
-                slot.getSchedule().getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
-                slot.getStartTime().format(TIME_FMT),
+                startSlot.getSchedule().getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
+                startSlot.getStartTime().format(TIME_FMT),
+                endTime.format(TIME_FMT),
                 service.getPrice().toPlainString()
         );
         return new SendMessage(chatId.toString(), text);
@@ -335,15 +348,23 @@ public class AppointmentBookingService {
         return buildMessage(chatId, "Выберите день:", rows);
     }
 
-    private SendMessage showAvailableSlots(Long chatId, Integer scheduleId) {
-        List<ScheduleSlot> slots = slotRepository.findFreeByScheduleId(scheduleId);
-        if (slots.isEmpty()) {
-            return new SendMessage(chatId.toString(), "В этот день нет свободных слотов. Выберите другой день.");
+    private SendMessage showAvailableSlots(Long chatId, Integer scheduleId, Integer serviceId) {
+        Service service = serviceRepository.findById(serviceId).orElseThrow();
+        int slotsNeeded = (int) Math.ceil((double) service.getDurationMinutes() / 30);
+
+        List<ScheduleSlot> allSlots = slotRepository.findAllByScheduleIdOrdered(scheduleId);
+        List<ScheduleSlot> validStarts = findValidStartSlots(allSlots, slotsNeeded);
+
+        if (validStarts.isEmpty()) {
+            return new SendMessage(chatId.toString(),
+                    "В этот день нет свободного времени для выбранной услуги. Выберите другой день.");
         }
+
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        for (ScheduleSlot sl : slots) {
-            String label = String.format("%s – %s", sl.getStartTime().format(TIME_FMT), sl.getEndTime().format(TIME_FMT));
-            rows.add(List.of(btn(label, "BOOK_SLOT_" + sl.getId())));
+        for (ScheduleSlot startSlot : validStarts) {
+            LocalTime endTime = startSlot.getStartTime().plusMinutes((long) slotsNeeded * 30);
+            String label = startSlot.getStartTime().format(TIME_FMT) + " – " + endTime.format(TIME_FMT);
+            rows.add(List.of(btn(label, "BOOK_SLOT_" + startSlot.getId())));
         }
         rows.add(List.of(btn("❌ Отмена", "BOOK_CANCEL")));
         return buildMessage(chatId, "Выберите время:", rows);
@@ -354,24 +375,28 @@ public class AppointmentBookingService {
         Service service = serviceRepository.findById(context.getSelectedServiceId()).orElseThrow();
         ScheduleSlot slot = slotRepository.findById(context.getSelectedSlotId()).orElseThrow();
 
+        int slotsNeeded = (int) Math.ceil((double) service.getDurationMinutes() / 30);
+        LocalTime endTime = slot.getStartTime().plusMinutes((long) slotsNeeded * 30);
+
         String text = String.format("""
-                Подтвердите запись:
-                
-                👤 Специалист: %s %s
-                💈 Услуга: %s (%s мин)
-                📅 Дата: %s
-                🕐 Время: %s
-                💰 Стоимость: %s ₽
-                """,
+            Подтвердите запись:
+            
+            👤 Специалист: %s %s
+            💈 Услуга: %s (%s мин)
+            📅 Дата: %s
+            🕐 Время: %s – %s
+            💰 Стоимость: %s ₽
+            """,
                 specialist.getFirstname(), specialist.getLastname(),
                 service.getName(), service.getDurationMinutes(),
                 slot.getSchedule().getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
                 slot.getStartTime().format(TIME_FMT),
+                endTime.format(TIME_FMT),
                 service.getPrice().toPlainString()
         );
         return buildMessage(chatId, text, List.of(
                 List.of(btn("✅ Подтвердить", "BOOK_CONFIRM")),
-                List.of(btn("❌ Отмена",      "BOOK_CANCEL"))
+                List.of(btn("❌ Отмена", "BOOK_CANCEL"))
         ));
     }
 
@@ -399,5 +424,40 @@ public class AppointmentBookingService {
 
     private SendMessage unknownStep(Long chatId) {
         return new SendMessage(chatId.toString(), "Неизвестное действие. Начните заново: /make_appointment");
+    }
+
+    private List<ScheduleSlot> findValidStartSlots(List<ScheduleSlot> allSlots, int slotsNeeded) {
+        List<ScheduleSlot> validStarts = new ArrayList<>();
+        for (int i = 0; i <= allSlots.size() - slotsNeeded; i++) {
+            if (isConsecutiveFreeBlock(allSlots, i, slotsNeeded)) {
+                validStarts.add(allSlots.get(i));
+            }
+        }
+        return validStarts;
+    }
+
+    private boolean isConsecutiveFreeBlock(List<ScheduleSlot> slots, int startIndex, int slotsNeeded) {
+        for (int i = startIndex; i < startIndex + slotsNeeded; i++) {
+            ScheduleSlot current = slots.get(i);
+            if (current.isBooked()) return false;
+            if (i > startIndex) {
+                ScheduleSlot previous = slots.get(i - 1);
+                if (!previous.getEndTime().equals(current.getStartTime())) return false;
+            }
+        }
+        return true;
+    }
+
+    private void releaseSlots(Appointment appointment) {
+        List<ScheduleSlot> allSlots = slotRepository.findAllByScheduleIdOrdered(
+                appointment.getSlot().getSchedule().getId());
+
+        int startIndex = allSlots.indexOf(appointment.getSlot());
+        if (startIndex == -1) return;
+
+        int endIndex = Math.min(startIndex + appointment.getSlotsCount(), allSlots.size());
+        List<ScheduleSlot> slotsToRelease = allSlots.subList(startIndex, endIndex);
+        slotsToRelease.forEach(s -> s.setBooked(false));
+        slotRepository.saveAll(slotsToRelease);
     }
 }

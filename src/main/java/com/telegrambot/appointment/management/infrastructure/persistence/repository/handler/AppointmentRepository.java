@@ -64,4 +64,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             """, nativeQuery = true)
     List<Appointment> findDueForHourReminder(@Param("from") LocalDateTime from,
                                              @Param("to") LocalDateTime to);
+
+    @Query("""
+            SELECT a FROM Appointment a
+            JOIN FETCH a.client c
+            JOIN FETCH a.service srv
+            JOIN FETCH a.slot sl
+            JOIN FETCH sl.schedule sc
+            WHERE sc.id = :scheduleId
+              AND a.status = 'CONFIRMED'
+            """)
+    List<Appointment> findConfirmedByScheduleId(@Param("scheduleId") Integer scheduleId);
 }

@@ -29,6 +29,7 @@ public class UpdateRouter {
     private final ManagerService managerService;
     private final SpecialistService specialistService;
     private final ClientService clientService;
+    private final ManagerScheduleService managerScheduleService;
 
     public UpdateRouter(UserRoleService userRoleService,
                         StartHandler startHandler,
@@ -38,7 +39,8 @@ public class UpdateRouter {
                         AppointmentBookingService bookingService,
                         ManagerService managerService,
                         SpecialistService specialistService,
-                        ClientService clientService) {
+                        ClientService clientService,
+                        ManagerScheduleService managerScheduleService) {
         this.userRoleService = userRoleService;
         this.startHandler = startHandler;
         this.registrationHandler = registrationHandler;
@@ -48,6 +50,7 @@ public class UpdateRouter {
         this.managerService = managerService;
         this.specialistService = specialistService;
         this.clientService = clientService;
+        this.managerScheduleService = managerScheduleService;
     }
 
     public void route(Update update, Consumer<SendMessage> sender) {
@@ -106,7 +109,13 @@ public class UpdateRouter {
                 }
             }
             case MANAGER -> {
-                if (managerService.hasPendingAction(telegramId)) {
+                if (managerScheduleService.hasActiveContext(telegramId)) {
+                    SendMessage msg = managerScheduleService.handleTextInput(telegramId, chatId, text);
+                    if (msg != null) {
+                        sender.accept(msg);
+                        return;
+                    }
+                } else if (managerService.hasPendingAction(telegramId)) {
                     SendMessage msg = managerService.handlePendingAction(telegramId, chatId, text);
                     if (msg != null) sender.accept(msg);
                     return;
@@ -184,17 +193,41 @@ public class UpdateRouter {
                 switch (data) {
                     case "ADD_SPECIALIST_TO_WHITELIST" -> {
                     }
-                    case "SPECIALIST_SCHEDULE" -> sender.accept(specialistService.buildScheduleMessage(telegramId, chatId));
+                    case "SPECIALIST_SCHEDULE" ->
+                            sender.accept(specialistService.buildScheduleMessage(telegramId, chatId));
                     case "SPECIALIST_APPOINTMENTS" ->
                             sender.accept(specialistService.buildAppointmentsMessage(telegramId, chatId));
                 }
             }
             case MANAGER -> {
+                if (data.startsWith("SCHED_")) {
+                    if (data.startsWith("SCHED_DEL_DAY_")) {
+                        int scheduleId = Integer.parseInt(data.replace("SCHED_DEL_DAY_", ""));
+                        sender.accept(managerScheduleService.deleteDayWithCheck(telegramId, chatId, scheduleId));
+                    } else if (data.startsWith("SCHED_DEL_CONFIRM_")) {
+                        int scheduleId = Integer.parseInt(data.replace("SCHED_DEL_CONFIRM_", ""));
+                        sender.accept(managerScheduleService.confirmDeleteDay(chatId, scheduleId));
+                    } else if (data.startsWith("SCHED_DAY_")) {
+                        int scheduleId = Integer.parseInt(data.replace("SCHED_DAY_", ""));
+                        sender.accept(managerScheduleService.buildDayDetailMessage(chatId, scheduleId));
+                    } else if (data.startsWith("SCHED_BACK_TO_DAY_")) {
+                        int specialistId = Integer.parseInt(data.replace("SCHED_BACK_TO_DAY_", ""));
+                        sender.accept(managerScheduleService.buildSpecialistScheduleMessage(chatId, specialistId));
+                    } else if (data.startsWith("SCHED_BACK_TO_SPECIALISTS")) {
+                        sender.accept(managerScheduleService.startScheduleFlow(telegramId, chatId));
+                    } else if (data.startsWith("SCHED_ADD_")) {
+                        int specialistId = Integer.parseInt(data.replace("SCHED_ADD_", ""));
+                        sender.accept(managerScheduleService.startAddDaysFlow(telegramId, chatId, specialistId));
+                    } else {
+                        sender.accept(managerScheduleService.handleCallback(telegramId, chatId, data));
+                    }
+                    return;
+                }
                 switch (data) {
                     case "MANAGER_ADD_SPECIALIST" ->
                             sender.accept(managerService.startAddSpecialistToWhitelist(telegramId, chatId));
                     case "MANAGER_SPECIALISTS" -> sender.accept(managerService.buildSpecialistListMessage(chatId));
-                    case "MANAGER_SCHEDULE" -> sender.accept(new SendMessage(chatId.toString(), "🚧 В разработке"));
+                    case "MANAGER_SCHEDULE" -> sender.accept(managerScheduleService.startScheduleFlow(telegramId, chatId));
                 }
             }
         }
