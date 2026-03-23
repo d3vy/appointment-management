@@ -4,6 +4,9 @@ import com.telegrambot.appointment.management.domain.model.user.client.Client;
 import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
 import jakarta.persistence.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(schema = "client", name = "appointments")
 public class Appointment {
@@ -41,6 +44,16 @@ public class Appointment {
     @Column(name = "hour_reminder_sent", nullable = false)
     private boolean hourReminderSent = false;
 
+    @ManyToMany(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(
+            schema = "client",
+            name = "appointment_slots",
+            joinColumns = @JoinColumn(name = "appointment_id"),
+            inverseJoinColumns = @JoinColumn(name = "slot_id")
+    )
+    private List<ScheduleSlot> bookedSlots = new ArrayList<>();
+
+
     public Appointment() {}
 
     public Integer getId() { return id; }
@@ -61,4 +74,6 @@ public class Appointment {
     public void setHourReminderSent(boolean hourReminderSent) {this.hourReminderSent = hourReminderSent;}
     public int getSlotsCount() {return slotsCount;}
     public void setSlotsCount(int slotsCount) {this.slotsCount = slotsCount;}
+    public List<ScheduleSlot> getBookedSlots() {return bookedSlots;}
+    public void setBookedSlots(List<ScheduleSlot> bookedSlots) {this.bookedSlots = bookedSlots;}
 }

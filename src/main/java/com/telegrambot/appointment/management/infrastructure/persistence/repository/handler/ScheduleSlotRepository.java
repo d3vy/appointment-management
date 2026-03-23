@@ -1,7 +1,9 @@
 package com.telegrambot.appointment.management.infrastructure.persistence.repository.handler;
 
 import com.telegrambot.appointment.management.domain.model.appointment.ScheduleSlot;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,11 +17,13 @@ public interface ScheduleSlotRepository extends JpaRepository<ScheduleSlot, Inte
     List<ScheduleSlot> findFreeByScheduleId(@Param("scheduleId") Integer scheduleId);
 
     @Query("""
-        SELECT sl FROM ScheduleSlot sl
-        WHERE sl.schedule.id = :scheduleId
-        ORDER BY sl.startTime
-        """)
+    SELECT sl FROM ScheduleSlot sl
+    WHERE sl.schedule.id = :scheduleId
+    ORDER BY sl.startTime
+    """)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<ScheduleSlot> findAllByScheduleIdOrdered(@Param("scheduleId") Integer scheduleId);
+
 
     @Query("""
         SELECT sl FROM ScheduleSlot sl

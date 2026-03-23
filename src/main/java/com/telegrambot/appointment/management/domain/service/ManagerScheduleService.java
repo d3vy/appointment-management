@@ -151,7 +151,7 @@ public class ManagerScheduleService {
     }
 
     @Transactional
-    private SendMessage handleConfirm(ManagerScheduleContext context, Long chatId, Long telegramId, String data) {
+    public SendMessage handleConfirm(ManagerScheduleContext context, Long chatId, Long telegramId, String data) {
         if (!"SCHED_CONFIRM".equals(data)) return unknownAction(chatId);
 
         WorkdayRange range = parseWorkdayRange(context.getWorkdayInput());

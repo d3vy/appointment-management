@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Integer> {
@@ -75,4 +76,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
               AND a.status = 'CONFIRMED'
             """)
     List<Appointment> findConfirmedByScheduleId(@Param("scheduleId") Integer scheduleId);
+
+    @Query("""
+    SELECT a FROM Appointment a
+    JOIN FETCH a.client c
+    JOIN FETCH a.slot sl
+    JOIN FETCH sl.schedule sc
+    WHERE a.id = :id
+    """)
+    Optional<Appointment> findByIdWithSlot(@Param("id") Integer id);
 }

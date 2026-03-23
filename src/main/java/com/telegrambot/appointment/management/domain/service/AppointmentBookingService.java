@@ -141,7 +141,7 @@ public class AppointmentBookingService {
 
     @Transactional
     public SendMessage cancelAppointment(Long telegramId, Integer appointmentId, Long chatId) {
-        Appointment appointment = appointmentRepository.findById(appointmentId).orElse(null);
+        Appointment appointment = appointmentRepository.findByIdWithSlot(appointmentId).orElse(null);
 
         if (appointment == null || !appointment.getClient().getTelegramId().equals(telegramId)) {
             return new SendMessage(chatId.toString(), "⚠️ Запись не найдена.");
@@ -228,7 +228,7 @@ public class AppointmentBookingService {
     }
 
     @Transactional
-    private SendMessage handleConfirmation(BookingContext context, Long chatId, String data) {
+    public SendMessage handleConfirmation(BookingContext context, Long chatId, String data) {
         if (!"BOOK_CONFIRM".equals(data)) return unknownStep(chatId);
 
         Client client = clientRepository.findByTelegramId(context.getTelegramId())
@@ -449,15 +449,12 @@ public class AppointmentBookingService {
     }
 
     private void releaseSlots(Appointment appointment) {
-        List<ScheduleSlot> allSlots = slotRepository.findAllByScheduleIdOrdered(
-                appointment.getSlot().getSchedule().getId());
-
-        int startIndex = allSlots.indexOf(appointment.getSlot());
-        if (startIndex == -1) return;
-
-        int endIndex = Math.min(startIndex + appointment.getSlotsCount(), allSlots.size());
-        List<ScheduleSlot> slotsToRelease = allSlots.subList(startIndex, endIndex);
-        slotsToRelease.forEach(s -> s.setBooked(false));
-        slotRepository.saveAll(slotsToRelease);
+        List<ScheduleSlot> slots = appointment.getBookedSlots();
+        if (slots.isEmpty()) {
+            log.warn("No booked slots found for appointmentId={}", appointment.getId());
+            return;
+        }
+        slots.forEach(slot -> slot.setBooked(false));
+        slotRepository.saveAll(slots);
     }
 }

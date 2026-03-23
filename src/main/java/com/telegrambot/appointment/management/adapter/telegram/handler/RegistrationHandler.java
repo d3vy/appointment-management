@@ -79,6 +79,7 @@ public class RegistrationHandler {
                 "🔧 Вы определены как специалист.\nДавайте заполним ваш профиль.\n\nВведите ваше имя:");
     }
 
+
     public SendMessage handleMessage(Long telegramId, Long chatId, String messageText) {
         RegistrationContext context = contextRepository.findById(telegramId).orElse(null);
         if (context == null) {
