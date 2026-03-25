@@ -18,6 +18,7 @@ public class BotCommandsRegistry {
 
     private static final List<BotCommand> DEFAULT_COMMANDS = List.of(
             new BotCommand("/menu", "Главное меню"),
+            new BotCommand("/make_appointment", "Записаться к специалисту"),
             new BotCommand("/appointments", "Мои записи"),
             new BotCommand("/help", "Список команд")
     );

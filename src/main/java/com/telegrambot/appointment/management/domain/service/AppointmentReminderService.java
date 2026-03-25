@@ -3,9 +3,9 @@ package com.telegrambot.appointment.management.domain.service;
 import com.telegrambot.appointment.management.domain.model.appointment.Appointment;
 import com.telegrambot.appointment.management.domain.port.TelegramTextMessageSender;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.AppointmentRepository;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +33,7 @@ public class AppointmentReminderService {
     }
 
     @Scheduled(cron = "0 */10 * * * *")
-    @Async("taskScheduler")
+    @SchedulerLock(name = "sendDayReminders", lockAtLeastFor = "PT30S", lockAtMostFor = "PT9M")
     @Transactional
     public void sendDayReminders() {
         LocalDateTime from = LocalDateTime.now().plusHours(24).minusMinutes(REMINDER_WINDOW_MINUTES);
@@ -49,7 +49,7 @@ public class AppointmentReminderService {
     }
 
     @Scheduled(cron = "0 */10 * * * *")
-    @Async("taskScheduler")
+    @SchedulerLock(name = "sendHourReminders", lockAtLeastFor = "PT30S", lockAtMostFor = "PT9M")
     @Transactional
     public void sendHourReminders() {
         LocalDateTime from = LocalDateTime.now().plusHours(1).minusMinutes(REMINDER_WINDOW_MINUTES);

@@ -85,4 +85,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     WHERE a.id = :id
     """)
     Optional<Appointment> findByIdWithSlot(@Param("id") Integer id);
+
+    @Query("""
+    SELECT DISTINCT a FROM Appointment a
+    JOIN FETCH a.client c
+    JOIN FETCH a.slot sl
+    JOIN FETCH sl.schedule sc
+    LEFT JOIN FETCH a.bookedSlots
+    WHERE a.id = :id
+    """)
+    Optional<Appointment> findByIdWithSlotAndBookedSlots(@Param("id") Integer id);
 }

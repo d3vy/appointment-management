@@ -23,7 +23,8 @@ public class HelpHandler {
         String text = """
                 📋 Доступные команды:
                 
-                /menu — выбрать услугу и записаться
+                /menu — главное меню (запись и записи)
+                /make_appointment — сразу начать запись
                 /appointments — мои записи
                 /help — список команд
                 """;
@@ -34,9 +35,7 @@ public class HelpHandler {
         String text = """
                 📋 Команды менеджера:
                 
-                /menu — главное меню
-                /specialists — управление специалистами
-                /schedule — расписание
+                /menu — специалисты, расписание, услуги, привязка услуг
                 /help — список команд
                 """;
         return new SendMessage(chatId.toString(), text);
@@ -46,8 +45,7 @@ public class HelpHandler {
         String text = """
                 📋 Команды специалиста:
                 
-                /schedule — моё расписание
-                /appointments — мои записи на сегодня
+                /menu — расписание и записи
                 /help — список команд
                 """;
         return new SendMessage(chatId.toString(), text);

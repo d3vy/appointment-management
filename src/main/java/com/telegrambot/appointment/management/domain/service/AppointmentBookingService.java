@@ -15,7 +15,9 @@ import com.telegrambot.appointment.management.infrastructure.persistence.reposit
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -145,7 +147,7 @@ public class AppointmentBookingService {
 
     @Transactional
     public SendMessage cancelAppointment(Long telegramId, Integer appointmentId, Long chatId) {
-        Appointment appointment = appointmentRepository.findByIdWithSlot(appointmentId).orElse(null);
+        Appointment appointment = appointmentRepository.findByIdWithSlotAndBookedSlots(appointmentId).orElse(null);
 
         if (appointment == null || !appointment.getClient().getTelegramId().equals(telegramId)) {
             return new SendMessage(chatId.toString(), "⚠️ Запись не найдена.");
@@ -241,7 +243,7 @@ public class AppointmentBookingService {
         Service service = serviceRepository.findById(context.getSelectedServiceId()).orElseThrow();
 
         int slotsNeeded = (int) Math.ceil((double) service.getDurationMinutes() / 30);
-        List<ScheduleSlot> allSlots = slotRepository.findAllByScheduleIdOrdered(context.getSelectedScheduleId());
+        List<ScheduleSlot> allSlots = slotRepository.findAllByScheduleIdOrderedForUpdate(context.getSelectedScheduleId());
 
         ScheduleSlot startSlot = allSlots.stream()
                 .filter(s -> s.getId().equals(context.getSelectedSlotId()))
@@ -255,7 +257,7 @@ public class AppointmentBookingService {
                     "⚠️ Время уже занято. Попробуйте снова: /menu");
         }
 
-        List<ScheduleSlot> slotsToBook = allSlots.subList(startIndex, startIndex + slotsNeeded);
+        List<ScheduleSlot> slotsToBook = new ArrayList<>(allSlots.subList(startIndex, startIndex + slotsNeeded));
         slotsToBook.forEach(s -> s.setBooked(true));
         slotRepository.saveAll(slotsToBook);
 
@@ -264,9 +266,19 @@ public class AppointmentBookingService {
         appointment.setSpecialist(specialist);
         appointment.setService(service);
         appointment.setSlot(startSlot);
+        appointment.setBookedSlots(slotsToBook);
         appointment.setSlotsCount(slotsNeeded);
         appointment.setStatus(AppointmentStatus.CONFIRMED);
-        appointmentRepository.save(appointment);
+        try {
+            appointmentRepository.saveAndFlush(appointment);
+        } catch (DataIntegrityViolationException e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            bookingContextRepository.deleteById(context.getTelegramId());
+            log.warn("Concurrent booking conflict for telegramId={}, slotId={}",
+                    context.getTelegramId(), startSlot.getId());
+            return new SendMessage(chatId.toString(),
+                    "⚠️ Это время только что заняли. Выберите другое: /make_appointment");
+        }
 
         bookingContextRepository.deleteById(context.getTelegramId());
         log.info("Appointment created: clientId={}, specialistId={}, startSlotId={}, slotsCount={}",
@@ -454,8 +466,12 @@ public class AppointmentBookingService {
 
     private void releaseSlots(Appointment appointment) {
         List<ScheduleSlot> slots = appointment.getBookedSlots();
-        if (slots.isEmpty()) {
-            log.warn("No booked slots found for appointmentId={}", appointment.getId());
+        if (slots == null || slots.isEmpty()) {
+            ScheduleSlot single = appointment.getSlot();
+            if (single != null) {
+                single.setBooked(false);
+                slotRepository.save(single);
+            }
             return;
         }
         slots.forEach(slot -> slot.setBooked(false));

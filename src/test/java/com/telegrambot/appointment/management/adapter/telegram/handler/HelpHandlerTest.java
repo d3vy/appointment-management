@@ -25,6 +25,7 @@ class HelpHandlerTest {
 
         assertEquals("222", result.getChatId());
         assertTrue(result.getText().contains("/menu"));
+        assertTrue(result.getText().contains("/make_appointment"));
         assertTrue(result.getText().contains("/appointments"));
         assertTrue(result.getText().contains("/help"));
     }
@@ -35,8 +36,7 @@ class HelpHandlerTest {
 
         assertEquals("333", result.getChatId());
         assertTrue(result.getText().contains("/menu"));
-        assertTrue(result.getText().contains("/specialists"));
-        assertTrue(result.getText().contains("/schedule"));
+        assertTrue(result.getText().contains("/help"));
     }
 
     @Test
@@ -44,8 +44,8 @@ class HelpHandlerTest {
         SendMessage result = helpHandler.prepareHelpForSpecialist(444L);
 
         assertEquals("444", result.getChatId());
-        assertTrue(result.getText().contains("/schedule"));
-        assertTrue(result.getText().contains("/appointments"));
+        assertTrue(result.getText().contains("/menu"));
         assertTrue(result.getText().contains("/help"));
     }
 }
+

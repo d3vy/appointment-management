@@ -14,6 +14,10 @@ public class ManagerPendingAction implements Serializable {
 
     private ManagerAction action;
 
+    private String draftServiceName;
+    private String draftServicePrice;
+    private String draftServiceDurationMinutes;
+
     @TimeToLive
     private long ttl = 300L;
 
@@ -47,5 +51,29 @@ public class ManagerPendingAction implements Serializable {
 
     public void setTtl(long ttl) {
         this.ttl = ttl;
+    }
+
+    public String getDraftServiceName() {
+        return draftServiceName;
+    }
+
+    public void setDraftServiceName(String draftServiceName) {
+        this.draftServiceName = draftServiceName;
+    }
+
+    public String getDraftServicePrice() {
+        return draftServicePrice;
+    }
+
+    public void setDraftServicePrice(String draftServicePrice) {
+        this.draftServicePrice = draftServicePrice;
+    }
+
+    public String getDraftServiceDurationMinutes() {
+        return draftServiceDurationMinutes;
+    }
+
+    public void setDraftServiceDurationMinutes(String draftServiceDurationMinutes) {
+        this.draftServiceDurationMinutes = draftServiceDurationMinutes;
     }
 }

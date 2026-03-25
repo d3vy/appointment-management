@@ -21,8 +21,15 @@ public interface ScheduleSlotRepository extends JpaRepository<ScheduleSlot, Inte
     WHERE sl.schedule.id = :scheduleId
     ORDER BY sl.startTime
     """)
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<ScheduleSlot> findAllByScheduleIdOrdered(@Param("scheduleId") Integer scheduleId);
+
+    @Query("""
+    SELECT sl FROM ScheduleSlot sl
+    WHERE sl.schedule.id = :scheduleId
+    ORDER BY sl.startTime
+    """)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<ScheduleSlot> findAllByScheduleIdOrderedForUpdate(@Param("scheduleId") Integer scheduleId);
 
 
     @Query("""

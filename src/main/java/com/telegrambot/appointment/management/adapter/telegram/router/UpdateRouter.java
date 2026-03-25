@@ -5,7 +5,13 @@ import com.telegrambot.appointment.management.adapter.telegram.handler.MenuHandl
 import com.telegrambot.appointment.management.adapter.telegram.handler.RegistrationHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
-import com.telegrambot.appointment.management.domain.service.*;
+import com.telegrambot.appointment.management.domain.port.TelegramCallbackAcknowledger;
+import com.telegrambot.appointment.management.domain.service.AppointmentBookingService;
+import com.telegrambot.appointment.management.domain.service.ClientService;
+import com.telegrambot.appointment.management.domain.service.ManagerScheduleService;
+import com.telegrambot.appointment.management.domain.service.ManagerService;
+import com.telegrambot.appointment.management.domain.service.SpecialistService;
+import com.telegrambot.appointment.management.domain.service.UserRoleService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,6 +25,8 @@ import java.util.function.Consumer;
 public class UpdateRouter {
 
     private static final Logger log = LoggerFactory.getLogger(UpdateRouter.class);
+    private static final String LINK_SPEC_PREFIX = "M_LNK_SP_";
+    private static final String LINK_SVC_PREFIX = "M_LNK_SV_";
 
     private final UserRoleService userRoleService;
     private final StartHandler startHandler;
@@ -30,6 +38,7 @@ public class UpdateRouter {
     private final SpecialistService specialistService;
     private final ClientService clientService;
     private final ManagerScheduleService managerScheduleService;
+    private final TelegramCallbackAcknowledger callbackAcknowledger;
 
     public UpdateRouter(UserRoleService userRoleService,
                         StartHandler startHandler,
@@ -40,7 +49,8 @@ public class UpdateRouter {
                         ManagerService managerService,
                         SpecialistService specialistService,
                         ClientService clientService,
-                        ManagerScheduleService managerScheduleService) {
+                        ManagerScheduleService managerScheduleService,
+                        TelegramCallbackAcknowledger callbackAcknowledger) {
         this.userRoleService = userRoleService;
         this.startHandler = startHandler;
         this.registrationHandler = registrationHandler;
@@ -51,6 +61,7 @@ public class UpdateRouter {
         this.specialistService = specialistService;
         this.clientService = clientService;
         this.managerScheduleService = managerScheduleService;
+        this.callbackAcknowledger = callbackAcknowledger;
     }
 
     public void route(Update update, Consumer<SendMessage> sender) {
@@ -133,6 +144,7 @@ public class UpdateRouter {
 
     private void handleCallback(Update update, Consumer<SendMessage> sender) {
         var callback = update.getCallbackQuery();
+        callbackAcknowledger.acknowledge(callback.getId());
         String data = callback.getData();
         Long telegramId = callback.getFrom().getId();
         Message message = (Message) callback.getMessage();
@@ -191,8 +203,8 @@ public class UpdateRouter {
             }
             case SPECIALIST -> {
                 switch (data) {
-                    case "ADD_SPECIALIST_TO_WHITELIST" -> {
-                    }
+                    case "ADD_SPECIALIST_TO_WHITELIST" -> sender.accept(new SendMessage(chatId.toString(),
+                            "Добавлять специалистов в whitelist может только менеджер. Попросите менеджера добавить вас через меню «Добавить специалиста»."));
                     case "SPECIALIST_SCHEDULE" ->
                             sender.accept(specialistService.buildScheduleMessage(telegramId, chatId));
                     case "SPECIALIST_APPOINTMENTS" ->
@@ -223,9 +235,24 @@ public class UpdateRouter {
                     }
                     return;
                 }
+                if (data.startsWith(LINK_SPEC_PREFIX)) {
+                    int specialistId = Integer.parseInt(data.substring(LINK_SPEC_PREFIX.length()));
+                    sender.accept(managerService.handleLinkPickSpecialist(chatId, specialistId));
+                    return;
+                }
+                if (data.startsWith(LINK_SVC_PREFIX)) {
+                    String payload = data.substring(LINK_SVC_PREFIX.length());
+                    int underscore = payload.indexOf('_');
+                    int specialistId = Integer.parseInt(payload.substring(0, underscore));
+                    int serviceId = Integer.parseInt(payload.substring(underscore + 1));
+                    sender.accept(managerService.confirmLinkService(chatId, specialistId, serviceId));
+                    return;
+                }
                 switch (data) {
                     case "MANAGER_ADD_SPECIALIST" ->
                             sender.accept(managerService.startAddSpecialistToWhitelist(telegramId, chatId));
+                    case "MANAGER_ADD_SERVICE" -> sender.accept(managerService.startAddService(telegramId, chatId));
+                    case "MANAGER_LINK_SERVICE" -> sender.accept(managerService.startLinkServiceFlow(chatId));
                     case "MANAGER_SPECIALISTS" -> sender.accept(managerService.buildSpecialistListMessage(chatId));
                     case "MANAGER_SCHEDULE" -> sender.accept(managerScheduleService.startScheduleFlow(telegramId, chatId));
                 }

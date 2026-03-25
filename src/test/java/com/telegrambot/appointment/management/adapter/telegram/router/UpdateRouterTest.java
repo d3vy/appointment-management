@@ -5,6 +5,7 @@ import com.telegrambot.appointment.management.adapter.telegram.handler.MenuHandl
 import com.telegrambot.appointment.management.adapter.telegram.handler.RegistrationHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
+import com.telegrambot.appointment.management.domain.port.TelegramCallbackAcknowledger;
 import com.telegrambot.appointment.management.domain.service.AppointmentBookingService;
 import com.telegrambot.appointment.management.domain.service.ClientService;
 import com.telegrambot.appointment.management.domain.service.ManagerScheduleService;
@@ -54,6 +55,8 @@ class UpdateRouterTest {
     @Mock
     private ManagerScheduleService managerScheduleService;
     @Mock
+    private TelegramCallbackAcknowledger callbackAcknowledger;
+    @Mock
     private Consumer<SendMessage> sender;
 
     @Test
@@ -96,7 +99,8 @@ class UpdateRouterTest {
                 managerService,
                 specialistService,
                 clientService,
-                managerScheduleService
+                managerScheduleService,
+                callbackAcknowledger
         );
     }
 
