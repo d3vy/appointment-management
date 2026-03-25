@@ -1,16 +1,8 @@
 package com.telegrambot.appointment.management.adapter.telegram.router;
 
-import com.telegrambot.appointment.management.adapter.telegram.handler.HelpHandler;
-import com.telegrambot.appointment.management.adapter.telegram.handler.MenuHandler;
-import com.telegrambot.appointment.management.adapter.telegram.handler.RegistrationHandler;
-import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
+import com.telegrambot.appointment.management.adapter.telegram.role.TelegramRoleHandler;
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.port.TelegramCallbackAcknowledger;
-import com.telegrambot.appointment.management.domain.service.AppointmentBookingService;
-import com.telegrambot.appointment.management.domain.service.ClientService;
-import com.telegrambot.appointment.management.domain.service.ManagerScheduleService;
-import com.telegrambot.appointment.management.domain.service.ManagerService;
-import com.telegrambot.appointment.management.domain.service.SpecialistService;
 import com.telegrambot.appointment.management.domain.service.UserRoleService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,11 +15,12 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 
+import java.util.EnumMap;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,71 +30,76 @@ class UpdateRouterTest {
     @Mock
     private UserRoleService userRoleService;
     @Mock
-    private StartHandler startHandler;
-    @Mock
-    private RegistrationHandler registrationHandler;
-    @Mock
-    private MenuHandler menuHandler;
-    @Mock
-    private HelpHandler helpHandler;
-    @Mock
-    private AppointmentBookingService bookingService;
-    @Mock
-    private ManagerService managerService;
-    @Mock
-    private SpecialistService specialistService;
-    @Mock
-    private ClientService clientService;
-    @Mock
-    private ManagerScheduleService managerScheduleService;
-    @Mock
     private TelegramCallbackAcknowledger callbackAcknowledger;
+    @Mock
+    private TelegramRoleHandler notRegisteredHandler;
+    @Mock
+    private TelegramRoleHandler clientHandler;
+    @Mock
+    private TelegramRoleHandler specialistHandler;
+    @Mock
+    private TelegramRoleHandler managerHandler;
     @Mock
     private Consumer<SendMessage> sender;
 
     @Test
-    void routeForUnregisteredStartCommandUsesStartHandlerResult() {
+    void routeForUnregisteredStartCommandDelegatesToNotRegisteredHandler() {
         UpdateRouter updateRouter = buildUpdateRouter();
         Update update = buildMessageUpdate(1001L, 7001L, "ilia_username", "Ilia", "/start");
-        SendMessage startMessage = new SendMessage("7001", "welcome");
         when(userRoleService.defineUserRoleByTelegramId(1001L)).thenReturn(UserRole.NOT_REGISTERED);
-        when(startHandler.prepareStartMessage(any(Message.class))).thenReturn(startMessage);
 
         updateRouter.route(update, sender);
 
-        verify(startHandler).prepareStartMessage(any(Message.class));
-        verify(sender).accept(startMessage);
+        verify(notRegisteredHandler).handleMessage(any(Message.class), eq(sender));
     }
 
     @Test
-    void routeForClientUnknownCommandReturnsDefaultHint() {
+    void routeForClientUnknownCommandDelegatesToClientHandler() {
         UpdateRouter updateRouter = buildUpdateRouter();
         Update update = buildMessageUpdate(2002L, 8002L, "client_username", "Client", "/unknown");
         when(userRoleService.defineUserRoleByTelegramId(2002L)).thenReturn(UserRole.CLIENT);
 
         updateRouter.route(update, sender);
 
-        ArgumentCaptor<SendMessage> messageCaptor = ArgumentCaptor.forClass(SendMessage.class);
-        verify(sender).accept(messageCaptor.capture());
-        assertEquals("8002", messageCaptor.getValue().getChatId());
-        assertTrue(messageCaptor.getValue().getText().contains("Неизвестная команда"));
-        assertTrue(messageCaptor.getValue().getText().contains("/help"));
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(clientHandler).handleMessage(messageCaptor.capture(), eq(sender));
+        assertEquals("8002", messageCaptor.getValue().getChatId().toString());
+        assertEquals("/unknown", messageCaptor.getValue().getText());
+    }
+
+    @Test
+    void routeForCallbackAcksAndDelegatesToHandler() {
+        UpdateRouter updateRouter = buildUpdateRouter();
+        when(userRoleService.defineUserRoleByTelegramId(3003L)).thenReturn(UserRole.CLIENT);
+
+        var update = new Update();
+        var cq = new org.telegram.telegrambots.meta.api.objects.CallbackQuery();
+        cq.setId("cq1");
+        cq.setData("APPOINTMENTS_MY");
+        var user = new User();
+        user.setId(3003L);
+        cq.setFrom(user);
+        var chat = new Chat();
+        chat.setId(9009L);
+        var msg = new Message();
+        msg.setChat(chat);
+        msg.setMessageId(1);
+        cq.setMessage(msg);
+        update.setCallbackQuery(cq);
+
+        updateRouter.route(update, sender);
+
+        verify(callbackAcknowledger).acknowledge("cq1");
+        verify(clientHandler).handleCallback(eq(cq), eq(sender));
     }
 
     private UpdateRouter buildUpdateRouter() {
-        return new UpdateRouter(
-                userRoleService,
-                startHandler,
-                registrationHandler,
-                menuHandler,
-                helpHandler,
-                bookingService,
-                managerService,
-                specialistService,
-                clientService,
-                managerScheduleService,
-                callbackAcknowledger
-        );
+        EnumMap<UserRole, TelegramRoleHandler> map = new EnumMap<>(UserRole.class);
+        map.put(UserRole.NOT_REGISTERED, notRegisteredHandler);
+        map.put(UserRole.CLIENT, clientHandler);
+        map.put(UserRole.SPECIALIST, specialistHandler);
+        map.put(UserRole.MANAGER, managerHandler);
+        return new UpdateRouter(userRoleService, callbackAcknowledger, map);
     }
 
     private Update buildMessageUpdate(Long telegramId, Long chatId, String username, String firstName, String text) {
