@@ -9,7 +9,7 @@ import com.telegrambot.appointment.management.domain.model.user.specialist.Speci
 import com.telegrambot.appointment.management.domain.service.UserRoleService;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.client.ClientRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.RegistrationContextRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.context.RegistrationContextRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerWhitelistRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistWhitelistRepository;

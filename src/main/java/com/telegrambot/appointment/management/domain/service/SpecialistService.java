@@ -5,8 +5,8 @@ import com.telegrambot.appointment.management.domain.model.appointment.Appointme
 import com.telegrambot.appointment.management.domain.model.appointment.Schedule;
 import com.telegrambot.appointment.management.domain.model.appointment.ScheduleSlot;
 import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.AppointmentRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.ScheduleRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.AppointmentRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

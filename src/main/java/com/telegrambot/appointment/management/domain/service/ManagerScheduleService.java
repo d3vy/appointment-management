@@ -8,11 +8,12 @@ import com.telegrambot.appointment.management.domain.model.user.manager.Manager;
 import com.telegrambot.appointment.management.domain.model.user.manager.ManagerScheduleContext;
 import com.telegrambot.appointment.management.domain.model.user.manager.ManagerScheduleStep;
 import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.AppointmentRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.ScheduleRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.ScheduleSlotRepository;
+import com.telegrambot.appointment.management.domain.port.TelegramTextMessageSender;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.AppointmentRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleSlotRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerScheduleContextRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.context.ManagerScheduleContextRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.function.Consumer;
 
 @Service
 public class ManagerScheduleService {
@@ -44,7 +44,7 @@ public class ManagerScheduleService {
     private final ScheduleSlotRepository slotRepository;
     private final AppointmentRepository appointmentRepository;
     private final ManagerRepository managerRepository;
-    private final Consumer<SendMessage> messageSender;
+    private final TelegramTextMessageSender messageSender;
 
     public ManagerScheduleService(ManagerScheduleContextRepository scheduleContextRepository,
                                   SpecialistRepository specialistRepository,
@@ -52,7 +52,7 @@ public class ManagerScheduleService {
                                   ScheduleSlotRepository slotRepository,
                                   AppointmentRepository appointmentRepository,
                                   ManagerRepository managerRepository,
-                                  Consumer<SendMessage> messageSender) {
+                                  TelegramTextMessageSender messageSender) {
         this.scheduleContextRepository = scheduleContextRepository;
         this.specialistRepository = specialistRepository;
         this.scheduleRepository = scheduleRepository;
@@ -346,8 +346,7 @@ public class ManagerScheduleService {
                 appointment.getSlot().getStartTime().format(TIME_FMT)
         );
         try {
-            messageSender.accept(new SendMessage(
-                    appointment.getClient().getTelegramId().toString(), text));
+            messageSender.sendText(appointment.getClient().getTelegramId(), text);
         } catch (Exception e) {
             log.error("Failed to notify client telegramId={} about cancellation",
                     appointment.getClient().getTelegramId(), e);

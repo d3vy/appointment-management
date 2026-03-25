@@ -6,7 +6,7 @@ import com.telegrambot.appointment.management.domain.model.user.manager.ManagerA
 import com.telegrambot.appointment.management.domain.model.user.manager.ManagerPendingAction;
 import com.telegrambot.appointment.management.domain.model.user.manager.ManagerWhitelist;
 import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerPendingActionRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.context.ManagerPendingActionRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerWhitelistRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;

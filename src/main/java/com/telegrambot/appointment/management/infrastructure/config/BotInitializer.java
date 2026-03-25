@@ -3,6 +3,7 @@ package com.telegrambot.appointment.management.infrastructure.config;
 import com.telegrambot.appointment.management.adapter.telegram.AppointmentBot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 @Component
+@ConditionalOnProperty(name = "telegram.enabled", havingValue = "true", matchIfMissing = true)
 public class BotInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(BotInitializer.class);

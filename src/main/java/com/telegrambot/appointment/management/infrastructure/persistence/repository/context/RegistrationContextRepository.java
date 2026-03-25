@@ -1,4 +1,4 @@
-package com.telegrambot.appointment.management.infrastructure.persistence.repository.handler;
+package com.telegrambot.appointment.management.infrastructure.persistence.repository.context;
 
 import com.telegrambot.appointment.management.domain.model.registration.RegistrationContext;
 import org.springframework.data.repository.CrudRepository;

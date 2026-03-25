@@ -6,8 +6,12 @@ import com.telegrambot.appointment.management.domain.model.appointment.booking.B
 import com.telegrambot.appointment.management.domain.model.appointment.booking.BookingStep;
 import com.telegrambot.appointment.management.domain.model.user.client.Client;
 import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.AppointmentRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleSlotRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ServiceRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.client.ClientRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.*;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.context.BookingContextRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

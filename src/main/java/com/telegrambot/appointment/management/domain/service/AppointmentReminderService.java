@@ -1,19 +1,18 @@
 package com.telegrambot.appointment.management.domain.service;
 
 import com.telegrambot.appointment.management.domain.model.appointment.Appointment;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.handler.AppointmentRepository;
+import com.telegrambot.appointment.management.domain.port.TelegramTextMessageSender;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.AppointmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.function.Consumer;
 
 @Service
 public class AppointmentReminderService {
@@ -25,10 +24,10 @@ public class AppointmentReminderService {
     private static final int REMINDER_WINDOW_MINUTES = 10;
 
     private final AppointmentRepository appointmentRepository;
-    private final Consumer<SendMessage> messageSender;
+    private final TelegramTextMessageSender messageSender;
 
     public AppointmentReminderService(AppointmentRepository appointmentRepository,
-                                      Consumer<SendMessage> messageSender) {
+                                      TelegramTextMessageSender messageSender) {
         this.appointmentRepository = appointmentRepository;
         this.messageSender = messageSender;
     }
@@ -68,7 +67,7 @@ public class AppointmentReminderService {
     private void sendClientReminder(Appointment appointment, String text) {
         Long chatId = appointment.getClient().getTelegramId();
         try {
-            messageSender.accept(new SendMessage(chatId.toString(), text));
+            messageSender.sendText(chatId, text);
         } catch (Exception e) {
             log.error("Failed to send reminder to clientId={}, appointmentId={}",
                     appointment.getClient().getId(), appointment.getId(), e);

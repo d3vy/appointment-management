@@ -1,4 +1,4 @@
-package com.telegrambot.appointment.management.infrastructure.persistence.repository.handler;
+package com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment;
 
 import com.telegrambot.appointment.management.domain.model.appointment.Schedule;
 import org.springframework.data.jpa.repository.JpaRepository;
