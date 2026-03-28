@@ -1,0 +1,15 @@
+logging:
+  level:
+    root: INFO
+    com.telegrambot: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

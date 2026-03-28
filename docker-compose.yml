@@ -1,4 +1,20 @@
 services:
+  app:
+    build: .
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/appointment_bot
+      DB_USERNAME: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "8080:8080"
+
   postgres:
     image: postgres:16-alpine
     environment:
