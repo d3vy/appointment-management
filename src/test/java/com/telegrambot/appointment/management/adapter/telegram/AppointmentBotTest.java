@@ -3,6 +3,7 @@ package com.telegrambot.appointment.management.adapter.telegram;
 import com.telegrambot.appointment.management.adapter.telegram.TelegramReply;
 import com.telegrambot.appointment.management.adapter.telegram.router.UpdateRouter;
 import com.telegrambot.appointment.management.infrastructure.config.BotConfig;
+import com.telegrambot.appointment.management.infrastructure.service.TelegramMessageAnchorService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -25,10 +26,13 @@ class AppointmentBotTest {
     @Mock
     private UpdateRouter updateRouter;
 
+    @Mock
+    private TelegramMessageAnchorService telegramMessageAnchorService;
+
     @Test
     void getBotUsernameReturnsValueFromConfig() {
         when(botConfig.getBotName()).thenReturn("appointment_test_bot");
-        AppointmentBot appointmentBot = new AppointmentBot(botConfig, updateRouter);
+        AppointmentBot appointmentBot = new AppointmentBot(botConfig, updateRouter, telegramMessageAnchorService);
 
         assertEquals("appointment_test_bot", appointmentBot.getBotUsername());
     }
@@ -36,14 +40,14 @@ class AppointmentBotTest {
     @Test
     void getBotTokenReturnsValueFromConfig() {
         when(botConfig.getToken()).thenReturn("test-token");
-        AppointmentBot appointmentBot = new AppointmentBot(botConfig, updateRouter);
+        AppointmentBot appointmentBot = new AppointmentBot(botConfig, updateRouter, telegramMessageAnchorService);
 
         assertEquals("test-token", appointmentBot.getBotToken());
     }
 
     @Test
     void onUpdateReceivedDelegatesToRouter() {
-        AppointmentBot appointmentBot = new AppointmentBot(botConfig, updateRouter);
+        AppointmentBot appointmentBot = new AppointmentBot(botConfig, updateRouter, telegramMessageAnchorService);
         Update update = new Update();
 
         appointmentBot.onUpdateReceived(update);
@@ -53,7 +57,7 @@ class AppointmentBotTest {
 
     @Test
     void onUpdateReceivedHandlesRouterException() {
-        AppointmentBot appointmentBot = new AppointmentBot(botConfig, updateRouter);
+        AppointmentBot appointmentBot = new AppointmentBot(botConfig, updateRouter, telegramMessageAnchorService);
         Update update = new Update();
         doThrow(new RuntimeException("router failed")).when(updateRouter).route(any(Update.class), any(TelegramReply.class));
 

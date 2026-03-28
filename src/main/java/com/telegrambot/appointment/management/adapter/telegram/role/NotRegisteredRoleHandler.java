@@ -51,7 +51,7 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
         }
         SendMessage msg = registrationHandler.handleContact(telegramId, chatId, message.getContact());
         if (msg != null) {
-            sendWithOptionalEdit(telegramId, msg, reply);
+            sendWizardReply(message, telegramId, msg, reply);
         }
     }
 
@@ -71,10 +71,10 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
                 if (registrationHandler.isRegistering(telegramId)) {
                     SendMessage msg = registrationHandler.handleMessage(telegramId, chatId, text);
                     if (msg != null) {
-                        sendWithOptionalEdit(telegramId, msg, reply);
+                        sendWizardReply(message, telegramId, msg, reply);
                     }
                 } else {
-                    sendWithOptionalEdit(telegramId, new SendMessage(chatId.toString(),
+                    sendWizardReply(message, telegramId, new SendMessage(chatId.toString(),
                             "Сначала зарегистрируйтесь. Нажмите /start"), reply);
                 }
             }
@@ -123,5 +123,10 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
         anchorService.currentMessageId(telegramId).ifPresentOrElse(
                 messageId -> reply.sendOrEdit(outgoing, messageId),
                 () -> reply.send(outgoing));
+    }
+
+    private void sendWizardReply(Message userMessage, Long telegramId, SendMessage outgoing, TelegramReply reply) {
+        sendWithOptionalEdit(telegramId, outgoing, reply);
+        reply.deleteMessage(userMessage.getChatId().toString(), userMessage.getMessageId());
     }
 }

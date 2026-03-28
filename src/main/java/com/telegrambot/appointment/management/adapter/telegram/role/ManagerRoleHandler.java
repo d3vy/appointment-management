@@ -54,14 +54,14 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
         if (managerScheduleService.hasActiveContext(telegramId)) {
             SendMessage msg = managerScheduleService.handleTextInput(telegramId, chatId, text);
             if (msg != null) {
-                sendWithOptionalEdit(telegramId, msg, reply);
+                sendWizardReply(message, telegramId, msg, reply);
             }
             return;
         }
         if (managerService.hasPendingAction(telegramId)) {
             SendMessage msg = managerService.handlePendingAction(telegramId, chatId, text);
             if (msg != null) {
-                sendWithOptionalEdit(telegramId, msg, reply);
+                sendWizardReply(message, telegramId, msg, reply);
             }
             return;
         }
@@ -146,5 +146,10 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
         anchorService.currentMessageId(telegramId).ifPresentOrElse(
                 messageId -> reply.sendOrEdit(outgoing, messageId),
                 () -> reply.send(outgoing));
+    }
+
+    private void sendWizardReply(Message userMessage, Long telegramId, SendMessage outgoing, TelegramReply reply) {
+        sendWithOptionalEdit(telegramId, outgoing, reply);
+        reply.deleteMessage(userMessage.getChatId().toString(), userMessage.getMessageId());
     }
 }

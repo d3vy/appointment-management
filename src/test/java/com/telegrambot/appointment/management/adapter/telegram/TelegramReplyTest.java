@@ -3,6 +3,7 @@ package com.telegrambot.appointment.management.adapter.telegram;
 import org.junit.jupiter.api.Test;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
@@ -56,5 +57,28 @@ class TelegramReplyTest {
 
         EditMessageText edit = assertInstanceOf(EditMessageText.class, executed.get(0));
         assertTrue(edit.getReplyMarkup().getKeyboard().isEmpty());
+    }
+
+    @Test
+    void deleteMessageExecutesDeleteMessageWithChatAndId() {
+        List<BotApiMethod<?>> executed = new ArrayList<>();
+        TelegramReply reply = new TelegramReply(executed::add);
+
+        reply.deleteMessage("100", 55);
+
+        assertEquals(1, executed.size());
+        DeleteMessage del = assertInstanceOf(DeleteMessage.class, executed.get(0));
+        assertEquals("100", del.getChatId());
+        assertEquals(55, del.getMessageId());
+    }
+
+    @Test
+    void deleteMessageSkippedWhenMessageIdNull() {
+        List<BotApiMethod<?>> executed = new ArrayList<>();
+        TelegramReply reply = new TelegramReply(executed::add);
+
+        reply.deleteMessage("1", null);
+
+        assertTrue(executed.isEmpty());
     }
 }
