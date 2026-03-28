@@ -19,4 +19,7 @@ public interface SpecialistRepository extends JpaRepository<Specialist, Integer>
 
     @Query("SELECT s FROM Specialist s LEFT JOIN FETCH s.services ORDER BY s.lastname, s.firstname")
     List<Specialist> findAllWithServices();
+
+    @Query("SELECT DISTINCT s FROM Specialist s LEFT JOIN FETCH s.services WHERE s.telegramId = :telegramId")
+    Optional<Specialist> findByTelegramIdWithServices(@Param("telegramId") Long telegramId);
 }

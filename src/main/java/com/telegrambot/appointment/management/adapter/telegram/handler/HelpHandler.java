@@ -45,7 +45,7 @@ public class HelpHandler {
         String text = """
                 📋 Команды специалиста:
                 
-                /menu — расписание и записи
+                /menu — расписание, записи и услуги
                 /help — список команд
                 """;
         return new SendMessage(chatId.toString(), text);

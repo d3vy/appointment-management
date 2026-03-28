@@ -37,6 +37,29 @@ public class SpecialistService {
     }
 
     @Transactional(readOnly = true)
+    public SendMessage buildMyServicesMessage(Long telegramId, Long chatId) {
+        Specialist specialist = specialistRepository.findByTelegramIdWithServices(telegramId)
+                .orElseThrow(() -> new IllegalStateException("Specialist not found: " + telegramId));
+
+        var services = specialist.getServices().stream()
+                .sorted(Comparator.comparing(s -> s.getName(), String.CASE_INSENSITIVE_ORDER))
+                .toList();
+
+        if (services.isEmpty()) {
+            return new SendMessage(chatId.toString(), "💈 У вас пока нет привязанных услуг.");
+        }
+
+        StringBuilder text = new StringBuilder("💈 Ваши услуги (").append(services.size()).append("):\n\n");
+        for (int i = 0; i < services.size(); i++) {
+            var service = services.get(i);
+            text.append(i + 1).append(". ").append(service.getName())
+                    .append("\n   💰 ").append(service.getPrice().toPlainString()).append(" ₽")
+                    .append("   ⏱ ").append(service.getDurationMinutes()).append(" мин\n\n");
+        }
+        return new SendMessage(chatId.toString(), text.toString().trim());
+    }
+
+    @Transactional(readOnly = true)
     public SendMessage buildAppointmentsMessage(Long telegramId, Long chatId) {
         Specialist specialist = specialistRepository.findByTelegramId(telegramId)
                 .orElseThrow(() -> new IllegalStateException("Specialist not found: " + telegramId));

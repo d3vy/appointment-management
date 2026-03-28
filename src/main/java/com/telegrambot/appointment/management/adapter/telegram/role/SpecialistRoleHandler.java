@@ -63,6 +63,8 @@ public class SpecialistRoleHandler implements TelegramRoleHandler {
                     reply.sendOrEdit(specialistService.buildScheduleMessage(telegramId, chatId), messageId);
             case "SPECIALIST_APPOINTMENTS" ->
                     reply.sendOrEdit(specialistService.buildAppointmentsMessage(telegramId, chatId), messageId);
+            case "SPECIALIST_SERVICES" ->
+                    reply.sendOrEdit(specialistService.buildMyServicesMessage(telegramId, chatId), messageId);
         }
     }
 }

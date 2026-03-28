@@ -56,11 +56,13 @@ public class MenuHandler {
 
         InlineKeyboardButton schedule     = button("📆 Моё расписание", "SPECIALIST_SCHEDULE");
         InlineKeyboardButton appointments = button("📋 Мои записи",     "SPECIALIST_APPOINTMENTS");
+        InlineKeyboardButton services     = button("💈 Мои услуги",      "SPECIALIST_SERVICES");
 
         SendMessage msg = new SendMessage(message.getChatId().toString(), text);
         msg.setReplyMarkup(new InlineKeyboardMarkup(List.of(
                 List.of(schedule),
-                List.of(appointments)
+                List.of(appointments),
+                List.of(services)
         )));
         return msg;
     }
