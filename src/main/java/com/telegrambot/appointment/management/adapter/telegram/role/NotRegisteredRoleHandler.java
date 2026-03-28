@@ -1,5 +1,6 @@
 package com.telegrambot.appointment.management.adapter.telegram.role;
 
+import com.telegrambot.appointment.management.adapter.telegram.TelegramReply;
 import com.telegrambot.appointment.management.adapter.telegram.handler.HelpHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.RegistrationHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
@@ -11,8 +12,6 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
-
-import java.util.function.Consumer;
 
 @Component
 public class NotRegisteredRoleHandler implements TelegramRoleHandler {
@@ -40,22 +39,22 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
     }
 
     @Override
-    public void handleMessage(Message message, Consumer<SendMessage> sender) {
+    public void handleMessage(Message message, TelegramReply reply) {
         Long telegramId = message.getFrom().getId();
         Long chatId = message.getChatId();
         String text = message.getText();
 
         switch (text) {
-            case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
-            case "/help" -> sender.accept(helpHandler.prepareHelpForUnregistered(chatId));
+            case "/start" -> reply.send(startHandler.prepareStartMessage(message));
+            case "/help" -> reply.send(helpHandler.prepareHelpForUnregistered(chatId));
             default -> {
                 if (registrationHandler.isRegistering(telegramId)) {
                     SendMessage msg = registrationHandler.handleMessage(telegramId, chatId, text);
                     if (msg != null) {
-                        sender.accept(msg);
+                        reply.send(msg);
                     }
                 } else {
-                    sender.accept(new SendMessage(chatId.toString(),
+                    reply.send(new SendMessage(chatId.toString(),
                             "Сначала зарегистрируйтесь. Нажмите /start"));
                 }
             }
@@ -63,11 +62,12 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
     }
 
     @Override
-    public void handleCallback(CallbackQuery callback, Consumer<SendMessage> sender) {
+    public void handleCallback(CallbackQuery callback, TelegramReply reply) {
         String data = callback.getData();
         Long telegramId = callback.getFrom().getId();
         Message message = (Message) callback.getMessage();
         Long chatId = message.getChatId();
+        Integer messageId = message.getMessageId();
         String username = callback.getFrom().getUserName();
 
         switch (data) {
@@ -85,14 +85,14 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
                 } else {
                     msg = registrationHandler.startClientRegistration(telegramId, chatId, username);
                 }
-                sender.accept(msg);
+                reply.sendOrEdit(msg, messageId);
             }
             case "BACK_TO_FIRSTNAME", "BACK_TO_LASTNAME",
                  "BACK_TO_MANAGER_FIRSTNAME", "BACK_TO_MANAGER_LASTNAME",
                  "BACK_TO_SPECIALIST_FIRSTNAME", "BACK_TO_SPECIALIST_LASTNAME" -> {
                 SendMessage msg = registrationHandler.handleBackCallback(telegramId, chatId, data);
                 if (msg != null) {
-                    sender.accept(msg);
+                    reply.sendOrEdit(msg, messageId);
                 }
             }
         }

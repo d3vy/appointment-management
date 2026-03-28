@@ -1,5 +1,6 @@
 package com.telegrambot.appointment.management.adapter.telegram.role;
 
+import com.telegrambot.appointment.management.adapter.telegram.TelegramReply;
 import com.telegrambot.appointment.management.adapter.telegram.handler.HelpHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.MenuHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
@@ -8,15 +9,16 @@ import com.telegrambot.appointment.management.domain.service.AppointmentBookingS
 import com.telegrambot.appointment.management.domain.service.ClientService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Chat;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.User;
 
-import java.util.function.Consumer;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
@@ -35,8 +37,6 @@ class ClientRoleHandlerTest {
     private AppointmentBookingService bookingService;
     @Mock
     private ClientService clientService;
-    @Mock
-    private Consumer<SendMessage> sender;
 
     @Test
     void roleIsClient() {
@@ -53,9 +53,12 @@ class ClientRoleHandlerTest {
         SendMessage prepared = new SendMessage("10", "welcome");
         when(startHandler.prepareStartMessage(message)).thenReturn(prepared);
 
-        handler.handleMessage(message, sender);
+        List<BotApiMethod<?>> executed = new ArrayList<>();
+        TelegramReply reply = new TelegramReply(executed::add);
+        handler.handleMessage(message, reply);
 
-        verify(sender).accept(prepared);
+        assertEquals(1, executed.size());
+        assertEquals(prepared, executed.get(0));
     }
 
     @Test
@@ -66,11 +69,12 @@ class ClientRoleHandlerTest {
         SendMessage bookingMsg = new SendMessage("20", "booking");
         when(bookingService.startBooking(2L, 20L)).thenReturn(bookingMsg);
 
-        handler.handleMessage(message, sender);
+        List<BotApiMethod<?>> executed = new ArrayList<>();
+        TelegramReply reply = new TelegramReply(executed::add);
+        handler.handleMessage(message, reply);
 
-        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
-        verify(sender).accept(captor.capture());
-        assertEquals(bookingMsg, captor.getValue());
+        assertEquals(1, executed.size());
+        assertEquals(bookingMsg, executed.get(0));
         verify(bookingService).startBooking(2L, 20L);
     }
 

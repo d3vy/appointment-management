@@ -1,5 +1,6 @@
 package com.telegrambot.appointment.management.adapter.telegram.role;
 
+import com.telegrambot.appointment.management.adapter.telegram.TelegramReply;
 import com.telegrambot.appointment.management.adapter.telegram.handler.HelpHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.MenuHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
@@ -9,8 +10,6 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
-
-import java.util.function.Consumer;
 
 @Component
 public class SpecialistRoleHandler implements TelegramRoleHandler {
@@ -36,33 +35,34 @@ public class SpecialistRoleHandler implements TelegramRoleHandler {
     }
 
     @Override
-    public void handleMessage(Message message, Consumer<SendMessage> sender) {
+    public void handleMessage(Message message, TelegramReply reply) {
         Long chatId = message.getChatId();
         String text = message.getText();
 
         switch (text) {
-            case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
-            case "/menu" -> sender.accept(menuHandler.prepareSpecialistMenu(message));
-            case "/help" -> sender.accept(helpHandler.prepareHelpForSpecialist(chatId));
-            default -> sender.accept(new SendMessage(chatId.toString(),
+            case "/start" -> reply.send(startHandler.prepareStartMessage(message));
+            case "/menu" -> reply.send(menuHandler.prepareSpecialistMenu(message));
+            case "/help" -> reply.send(helpHandler.prepareHelpForSpecialist(chatId));
+            default -> reply.send(new SendMessage(chatId.toString(),
                     "Неизвестная команда. Используйте /help для списка команд."));
         }
     }
 
     @Override
-    public void handleCallback(CallbackQuery callback, Consumer<SendMessage> sender) {
+    public void handleCallback(CallbackQuery callback, TelegramReply reply) {
         String data = callback.getData();
         Long telegramId = callback.getFrom().getId();
         Message message = (Message) callback.getMessage();
         Long chatId = message.getChatId();
+        Integer messageId = message.getMessageId();
 
         switch (data) {
-            case "ADD_SPECIALIST_TO_WHITELIST" -> sender.accept(new SendMessage(chatId.toString(),
-                    "Добавлять специалистов в whitelist может только менеджер. Попросите менеджера добавить вас через меню «Добавить специалиста»."));
+            case "ADD_SPECIALIST_TO_WHITELIST" -> reply.sendOrEdit(new SendMessage(chatId.toString(),
+                    "Добавлять специалистов в whitelist может только менеджер. Попросите менеджера добавить вас через меню «Добавить специалиста»."), messageId);
             case "SPECIALIST_SCHEDULE" ->
-                    sender.accept(specialistService.buildScheduleMessage(telegramId, chatId));
+                    reply.sendOrEdit(specialistService.buildScheduleMessage(telegramId, chatId), messageId);
             case "SPECIALIST_APPOINTMENTS" ->
-                    sender.accept(specialistService.buildAppointmentsMessage(telegramId, chatId));
+                    reply.sendOrEdit(specialistService.buildAppointmentsMessage(telegramId, chatId), messageId);
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.telegrambot.appointment.management.adapter.telegram.role;
 
+import com.telegrambot.appointment.management.adapter.telegram.TelegramReply;
 import com.telegrambot.appointment.management.adapter.telegram.handler.HelpHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.MenuHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
@@ -10,8 +11,6 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
-
-import java.util.function.Consumer;
 
 @Component
 public class ManagerRoleHandler implements TelegramRoleHandler {
@@ -43,7 +42,7 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
     }
 
     @Override
-    public void handleMessage(Message message, Consumer<SendMessage> sender) {
+    public void handleMessage(Message message, TelegramReply reply) {
         Long telegramId = message.getFrom().getId();
         Long chatId = message.getChatId();
         String text = message.getText();
@@ -51,59 +50,60 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
         if (managerScheduleService.hasActiveContext(telegramId)) {
             SendMessage msg = managerScheduleService.handleTextInput(telegramId, chatId, text);
             if (msg != null) {
-                sender.accept(msg);
+                reply.send(msg);
             }
             return;
         }
         if (managerService.hasPendingAction(telegramId)) {
             SendMessage msg = managerService.handlePendingAction(telegramId, chatId, text);
             if (msg != null) {
-                sender.accept(msg);
+                reply.send(msg);
             }
             return;
         }
         switch (text) {
-            case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
-            case "/menu" -> sender.accept(menuHandler.prepareManagerMenu(message));
-            case "/help" -> sender.accept(helpHandler.prepareHelpForManager(chatId));
-            default -> sender.accept(new SendMessage(chatId.toString(),
+            case "/start" -> reply.send(startHandler.prepareStartMessage(message));
+            case "/menu" -> reply.send(menuHandler.prepareManagerMenu(message));
+            case "/help" -> reply.send(helpHandler.prepareHelpForManager(chatId));
+            default -> reply.send(new SendMessage(chatId.toString(),
                     "Неизвестная команда. Используйте /help для списка команд."));
         }
     }
 
     @Override
-    public void handleCallback(CallbackQuery callback, Consumer<SendMessage> sender) {
+    public void handleCallback(CallbackQuery callback, TelegramReply reply) {
         String data = callback.getData();
         Long telegramId = callback.getFrom().getId();
         Message message = (Message) callback.getMessage();
         Long chatId = message.getChatId();
+        Integer messageId = message.getMessageId();
 
         if (data.startsWith("SCHED_")) {
             if (data.startsWith("SCHED_DEL_DAY_")) {
                 int scheduleId = Integer.parseInt(data.replace("SCHED_DEL_DAY_", ""));
-                sender.accept(managerScheduleService.deleteDayWithCheck(telegramId, chatId, scheduleId));
+                reply.sendOrEdit(managerScheduleService.deleteDayWithCheck(telegramId, chatId, scheduleId), messageId);
             } else if (data.startsWith("SCHED_DEL_CONFIRM_")) {
                 int scheduleId = Integer.parseInt(data.replace("SCHED_DEL_CONFIRM_", ""));
-                sender.accept(managerScheduleService.confirmDeleteDay(chatId, scheduleId));
+                reply.sendOrEdit(managerScheduleService.confirmDeleteDay(chatId, scheduleId), messageId);
             } else if (data.startsWith("SCHED_DAY_")) {
                 int scheduleId = Integer.parseInt(data.replace("SCHED_DAY_", ""));
-                sender.accept(managerScheduleService.buildDayDetailMessage(chatId, scheduleId));
+                reply.sendOrEdit(managerScheduleService.buildDayDetailMessage(chatId, scheduleId), messageId);
             } else if (data.startsWith("SCHED_BACK_TO_DAY_")) {
                 int specialistId = Integer.parseInt(data.replace("SCHED_BACK_TO_DAY_", ""));
-                sender.accept(managerScheduleService.buildSpecialistScheduleMessage(chatId, specialistId));
+                reply.sendOrEdit(managerScheduleService.buildSpecialistScheduleMessage(chatId, specialistId), messageId);
             } else if (data.startsWith("SCHED_BACK_TO_SPECIALISTS")) {
-                sender.accept(managerScheduleService.startScheduleFlow(telegramId, chatId));
+                reply.sendOrEdit(managerScheduleService.startScheduleFlow(telegramId, chatId), messageId);
             } else if (data.startsWith("SCHED_ADD_")) {
                 int specialistId = Integer.parseInt(data.replace("SCHED_ADD_", ""));
-                sender.accept(managerScheduleService.startAddDaysFlow(telegramId, chatId, specialistId));
+                reply.sendOrEdit(managerScheduleService.startAddDaysFlow(telegramId, chatId, specialistId), messageId);
             } else {
-                sender.accept(managerScheduleService.handleCallback(telegramId, chatId, data));
+                reply.sendOrEdit(managerScheduleService.handleCallback(telegramId, chatId, data), messageId);
             }
             return;
         }
         if (data.startsWith(LINK_SPEC_PREFIX)) {
             int specialistId = Integer.parseInt(data.substring(LINK_SPEC_PREFIX.length()));
-            sender.accept(managerService.handleLinkPickSpecialist(chatId, specialistId));
+            reply.sendOrEdit(managerService.handleLinkPickSpecialist(chatId, specialistId), messageId);
             return;
         }
         if (data.startsWith(LINK_SVC_PREFIX)) {
@@ -111,16 +111,16 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
             int underscore = payload.indexOf('_');
             int specialistId = Integer.parseInt(payload.substring(0, underscore));
             int serviceId = Integer.parseInt(payload.substring(underscore + 1));
-            sender.accept(managerService.confirmLinkService(chatId, specialistId, serviceId));
+            reply.sendOrEdit(managerService.confirmLinkService(chatId, specialistId, serviceId), messageId);
             return;
         }
         switch (data) {
             case "MANAGER_ADD_SPECIALIST" ->
-                    sender.accept(managerService.startAddSpecialistToWhitelist(telegramId, chatId));
-            case "MANAGER_ADD_SERVICE" -> sender.accept(managerService.startAddService(telegramId, chatId));
-            case "MANAGER_LINK_SERVICE" -> sender.accept(managerService.startLinkServiceFlow(chatId));
-            case "MANAGER_SPECIALISTS" -> sender.accept(managerService.buildSpecialistListMessage(chatId));
-            case "MANAGER_SCHEDULE" -> sender.accept(managerScheduleService.startScheduleFlow(telegramId, chatId));
+                    reply.sendOrEdit(managerService.startAddSpecialistToWhitelist(telegramId, chatId), messageId);
+            case "MANAGER_ADD_SERVICE" -> reply.sendOrEdit(managerService.startAddService(telegramId, chatId), messageId);
+            case "MANAGER_LINK_SERVICE" -> reply.sendOrEdit(managerService.startLinkServiceFlow(chatId), messageId);
+            case "MANAGER_SPECIALISTS" -> reply.sendOrEdit(managerService.buildSpecialistListMessage(chatId), messageId);
+            case "MANAGER_SCHEDULE" -> reply.sendOrEdit(managerScheduleService.startScheduleFlow(telegramId, chatId), messageId);
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.telegrambot.appointment.management.adapter.telegram.role;
 
+import com.telegrambot.appointment.management.adapter.telegram.TelegramReply;
 import com.telegrambot.appointment.management.adapter.telegram.handler.HelpHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.MenuHandler;
 import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
@@ -10,8 +11,6 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
-
-import java.util.function.Consumer;
 
 @Component
 public class ClientRoleHandler implements TelegramRoleHandler {
@@ -40,44 +39,46 @@ public class ClientRoleHandler implements TelegramRoleHandler {
     }
 
     @Override
-    public void handleMessage(Message message, Consumer<SendMessage> sender) {
+    public void handleMessage(Message message, TelegramReply reply) {
         Long telegramId = message.getFrom().getId();
         Long chatId = message.getChatId();
         String text = message.getText();
 
         switch (text) {
-            case "/start" -> sender.accept(startHandler.prepareStartMessage(message));
-            case "/menu" -> sender.accept(menuHandler.prepareClientMenu(message,
+            case "/start" -> reply.send(startHandler.prepareStartMessage(message));
+            case "/menu" -> reply.send(menuHandler.prepareClientMenu(message,
                     clientService.isNotificationsEnabled(telegramId)));
-            case "/make_appointment" -> sender.accept(bookingService.startBooking(telegramId, chatId));
+            case "/make_appointment" -> reply.send(bookingService.startBooking(telegramId, chatId));
             case "/appointments" ->
-                    sender.accept(bookingService.buildClientAppointmentsMessage(telegramId, chatId));
-            case "/help" -> sender.accept(helpHandler.prepareHelpForClient(chatId));
-            default -> sender.accept(new SendMessage(chatId.toString(),
+                    reply.send(bookingService.buildClientAppointmentsMessage(telegramId, chatId));
+            case "/help" -> reply.send(helpHandler.prepareHelpForClient(chatId));
+            default -> reply.send(new SendMessage(chatId.toString(),
                     "Неизвестная команда. Используйте /help для списка команд."));
         }
     }
 
     @Override
-    public void handleCallback(CallbackQuery callback, Consumer<SendMessage> sender) {
+    public void handleCallback(CallbackQuery callback, TelegramReply reply) {
         String data = callback.getData();
         Long telegramId = callback.getFrom().getId();
         Message message = (Message) callback.getMessage();
         Long chatId = message.getChatId();
+        Integer messageId = message.getMessageId();
 
         if (data.startsWith("CANCEL_APPT_")) {
             Integer appointmentId = Integer.parseInt(data.replace("CANCEL_APPT_", ""));
-            sender.accept(bookingService.cancelAppointment(telegramId, appointmentId, chatId));
+            reply.sendOrEdit(bookingService.cancelAppointment(telegramId, appointmentId, chatId), messageId);
         } else if (data.startsWith("BOOK_") || bookingService.isBooking(telegramId)) {
-            sender.accept(bookingService.handleCallback(telegramId, chatId, data));
+            reply.sendOrEdit(bookingService.handleCallback(telegramId, chatId, data), messageId);
         } else {
             switch (data) {
-                case "APPOINTMENTS_SCHEDULE" -> sender.accept(bookingService.startBooking(telegramId, chatId));
+                case "APPOINTMENTS_SCHEDULE" ->
+                        reply.sendOrEdit(bookingService.startBooking(telegramId, chatId), messageId);
                 case "APPOINTMENTS_MY" ->
-                        sender.accept(bookingService.buildClientAppointmentsMessage(telegramId, chatId));
+                        reply.sendOrEdit(bookingService.buildClientAppointmentsMessage(telegramId, chatId), messageId);
                 case "TOGGLE_NOTIFICATIONS" -> {
                     boolean enabled = clientService.toggleNotifications(telegramId);
-                    sender.accept(menuHandler.prepareClientMenu(message, enabled));
+                    reply.sendOrEdit(menuHandler.prepareClientMenu(message, enabled), messageId);
                 }
             }
         }

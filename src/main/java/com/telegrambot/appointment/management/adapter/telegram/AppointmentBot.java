@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -32,17 +33,21 @@ public class AppointmentBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         try {
-            updateRouter.route(update, this::sendMessage);
+            updateRouter.route(update, new TelegramReply(this::executeTelegramMethod));
         } catch (Exception e) {
             log.error("Unhandled exception while processing update", e);
         }
     }
 
-    public void sendMessage(SendMessage message) {
+    public void executeTelegramMethod(BotApiMethod<?> method) {
         try {
-            execute(message);
+            execute(method);
         } catch (TelegramApiException e) {
-            log.error("Failed to send message to chatId={}: {}", message.getChatId(), e.getMessage());
+            log.error("Failed to execute {} for chat: {}", method.getClass().getSimpleName(), e.getMessage());
         }
+    }
+
+    public void sendMessage(SendMessage message) {
+        executeTelegramMethod(message);
     }
 }

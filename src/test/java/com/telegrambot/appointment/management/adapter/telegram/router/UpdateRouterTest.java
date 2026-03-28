@@ -1,5 +1,6 @@
 package com.telegrambot.appointment.management.adapter.telegram.router;
 
+import com.telegrambot.appointment.management.adapter.telegram.TelegramReply;
 import com.telegrambot.appointment.management.adapter.telegram.role.TelegramRoleHandler;
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.port.TelegramCallbackAcknowledger;
@@ -9,15 +10,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Chat;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 
 import java.util.EnumMap;
-import java.util.function.Consumer;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -40,7 +38,7 @@ class UpdateRouterTest {
     @Mock
     private TelegramRoleHandler managerHandler;
     @Mock
-    private Consumer<SendMessage> sender;
+    private TelegramReply reply;
 
     @Test
     void routeForUnregisteredStartCommandDelegatesToNotRegisteredHandler() {
@@ -48,9 +46,9 @@ class UpdateRouterTest {
         Update update = buildMessageUpdate(1001L, 7001L, "ilia_username", "Ilia", "/start");
         when(userRoleService.defineUserRoleByTelegramId(1001L)).thenReturn(UserRole.NOT_REGISTERED);
 
-        updateRouter.route(update, sender);
+        updateRouter.route(update, reply);
 
-        verify(notRegisteredHandler).handleMessage(any(Message.class), eq(sender));
+        verify(notRegisteredHandler).handleMessage(any(Message.class), eq(reply));
     }
 
     @Test
@@ -59,10 +57,10 @@ class UpdateRouterTest {
         Update update = buildMessageUpdate(2002L, 8002L, "client_username", "Client", "/unknown");
         when(userRoleService.defineUserRoleByTelegramId(2002L)).thenReturn(UserRole.CLIENT);
 
-        updateRouter.route(update, sender);
+        updateRouter.route(update, reply);
 
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(clientHandler).handleMessage(messageCaptor.capture(), eq(sender));
+        verify(clientHandler).handleMessage(messageCaptor.capture(), eq(reply));
         assertEquals("8002", messageCaptor.getValue().getChatId().toString());
         assertEquals("/unknown", messageCaptor.getValue().getText());
     }
@@ -87,10 +85,10 @@ class UpdateRouterTest {
         cq.setMessage(msg);
         update.setCallbackQuery(cq);
 
-        updateRouter.route(update, sender);
+        updateRouter.route(update, reply);
 
         verify(callbackAcknowledger).acknowledge("cq1");
-        verify(clientHandler).handleCallback(eq(cq), eq(sender));
+        verify(clientHandler).handleCallback(eq(cq), eq(reply));
     }
 
     private UpdateRouter buildUpdateRouter() {
