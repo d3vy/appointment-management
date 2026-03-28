@@ -2,6 +2,7 @@ logging:
   level:
     root: INFO
     com.telegrambot: INFO
+    com.telegrambot.appointment.management.adapter.telegram.router.UpdateRouter: INFO
     org.hibernate.SQL: WARN
     org.hibernate.orm.jdbc.bind: WARN
 

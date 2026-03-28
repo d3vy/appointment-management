@@ -4,6 +4,7 @@ COPY . .
 RUN chmod +x mvnw && ./mvnw -q -DskipTests package
 
 FROM eclipse-temurin:21-jre-alpine
+ENV SPRING_PROFILES_ACTIVE=prod
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 WORKDIR /app

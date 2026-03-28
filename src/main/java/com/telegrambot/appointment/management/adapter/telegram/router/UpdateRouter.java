@@ -56,7 +56,7 @@ public class UpdateRouter {
             return Optional.empty();
         }
         if ("fuck you".equalsIgnoreCase(text.trim())) {
-            return Optional.of("fuck you too");
+            return Optional.of("fuck you too ✌️");
         }
         return Optional.empty();
     }
@@ -80,7 +80,7 @@ public class UpdateRouter {
         String text = message.getText();
 
         UserRole role = userRoleService.defineUserRoleByTelegramId(telegramId);
-        log.debug("Message: telegramId={}, role={}, text={}", telegramId, role, text);
+        log.debug("Message: telegramId={}, role={}", telegramId, role);
 
         TelegramRoleHandler handler = roleHandlers.get(role);
         if (handler == null) {
@@ -98,7 +98,8 @@ public class UpdateRouter {
         String data = callback.getData();
 
         UserRole role = userRoleService.defineUserRoleByTelegramId(telegramId);
-        log.debug("Callback: telegramId={}, role={}, data={}", telegramId, role, data);
+        int payloadLength = data == null ? 0 : data.length();
+        log.debug("Callback: telegramId={}, role={}, callbackPayloadLength={}", telegramId, role, payloadLength);
 
         TelegramRoleHandler handler = roleHandlers.get(role);
         if (handler == null) {

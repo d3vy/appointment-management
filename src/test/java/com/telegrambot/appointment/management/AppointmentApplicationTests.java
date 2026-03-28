@@ -12,7 +12,8 @@ import org.testcontainers.utility.DockerImageName;
 
 @SpringBootTest(properties = {
         "telegram.enabled=false",
-        "spring.task.scheduling.enabled=false"
+        "spring.task.scheduling.enabled=false",
+        "spring.data.redis.password="
 })
 @Testcontainers(disabledWithoutDocker = true)
 class AppointmentApplicationTests {
