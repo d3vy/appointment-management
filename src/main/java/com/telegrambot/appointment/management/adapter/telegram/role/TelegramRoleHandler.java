@@ -11,5 +11,8 @@ public interface TelegramRoleHandler {
 
     void handleMessage(Message message, TelegramReply reply);
 
+    default void handleContact(Message message, TelegramReply reply) {
+    }
+
     void handleCallback(CallbackQuery callback, TelegramReply reply);
 }

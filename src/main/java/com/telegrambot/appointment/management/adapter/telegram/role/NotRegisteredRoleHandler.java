@@ -39,6 +39,19 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
     }
 
     @Override
+    public void handleContact(Message message, TelegramReply reply) {
+        Long telegramId = message.getFrom().getId();
+        Long chatId = message.getChatId();
+        if (!registrationHandler.isRegistering(telegramId)) {
+            return;
+        }
+        SendMessage msg = registrationHandler.handleContact(telegramId, chatId, message.getContact());
+        if (msg != null) {
+            reply.send(msg);
+        }
+    }
+
+    @Override
     public void handleMessage(Message message, TelegramReply reply) {
         Long telegramId = message.getFrom().getId();
         Long chatId = message.getChatId();
@@ -87,9 +100,13 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
                 }
                 reply.sendOrEdit(msg, messageId);
             }
-            case "BACK_TO_FIRSTNAME", "BACK_TO_LASTNAME",
-                 "BACK_TO_MANAGER_FIRSTNAME", "BACK_TO_MANAGER_LASTNAME",
-                 "BACK_TO_SPECIALIST_FIRSTNAME", "BACK_TO_SPECIALIST_LASTNAME" -> {
+            case "BACK_TO_LASTNAME", "BACK_TO_MANAGER_LASTNAME", "BACK_TO_SPECIALIST_LASTNAME" -> {
+                SendMessage msg = registrationHandler.handleBackCallback(telegramId, chatId, data);
+                if (msg != null) {
+                    reply.send(msg);
+                }
+            }
+            case "BACK_TO_FIRSTNAME", "BACK_TO_MANAGER_FIRSTNAME", "BACK_TO_SPECIALIST_FIRSTNAME" -> {
                 SendMessage msg = registrationHandler.handleBackCallback(telegramId, chatId, data);
                 if (msg != null) {
                     reply.sendOrEdit(msg, messageId);

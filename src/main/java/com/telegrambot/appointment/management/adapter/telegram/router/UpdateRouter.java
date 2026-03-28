@@ -8,10 +8,12 @@ import com.telegrambot.appointment.management.domain.service.UserRoleService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.EnumMap;
+import java.util.Optional;
 
 @Service
 public class UpdateRouter {
@@ -31,11 +33,46 @@ public class UpdateRouter {
     }
 
     public void route(Update update, TelegramReply reply) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            handleMessage(update.getMessage(), reply);
+        if (update.hasMessage()) {
+            Message message = update.getMessage();
+            if (message.hasText()) {
+                Optional<String> tauntReply = tryTauntReply(message);
+                if (tauntReply.isPresent()) {
+                    reply.send(new SendMessage(message.getChatId().toString(), tauntReply.get()));
+                    return;
+                }
+                handleMessage(message, reply);
+            } else if (message.hasContact()) {
+                handleContact(message, reply);
+            }
         } else if (update.hasCallbackQuery()) {
             handleCallback(update, reply);
         }
+    }
+
+    private static Optional<String> tryTauntReply(Message message) {
+        String text = message.getText();
+        if (text == null) {
+            return Optional.empty();
+        }
+        if ("fuck you".equalsIgnoreCase(text.trim())) {
+            return Optional.of("fuck you too");
+        }
+        return Optional.empty();
+    }
+
+    private void handleContact(Message message, TelegramReply reply) {
+        Long telegramId = message.getFrom().getId();
+
+        UserRole role = userRoleService.defineUserRoleByTelegramId(telegramId);
+        log.debug("Contact: telegramId={}, role={}", telegramId, role);
+
+        TelegramRoleHandler handler = roleHandlers.get(role);
+        if (handler == null) {
+            log.error("No TelegramRoleHandler for role {}", role);
+            return;
+        }
+        handler.handleContact(message, reply);
     }
 
     private void handleMessage(Message message, TelegramReply reply) {
