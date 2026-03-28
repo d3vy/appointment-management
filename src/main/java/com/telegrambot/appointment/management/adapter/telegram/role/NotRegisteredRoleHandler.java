@@ -6,6 +6,7 @@ import com.telegrambot.appointment.management.adapter.telegram.handler.Registrat
 import com.telegrambot.appointment.management.adapter.telegram.handler.StartHandler;
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.service.UserRoleService;
+import com.telegrambot.appointment.management.infrastructure.service.TelegramMessageAnchorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -22,15 +23,18 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
     private final HelpHandler helpHandler;
     private final RegistrationHandler registrationHandler;
     private final UserRoleService userRoleService;
+    private final TelegramMessageAnchorService anchorService;
 
     public NotRegisteredRoleHandler(StartHandler startHandler,
                                     HelpHandler helpHandler,
                                     RegistrationHandler registrationHandler,
-                                    UserRoleService userRoleService) {
+                                    UserRoleService userRoleService,
+                                    TelegramMessageAnchorService anchorService) {
         this.startHandler = startHandler;
         this.helpHandler = helpHandler;
         this.registrationHandler = registrationHandler;
         this.userRoleService = userRoleService;
+        this.anchorService = anchorService;
     }
 
     @Override
@@ -47,7 +51,7 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
         }
         SendMessage msg = registrationHandler.handleContact(telegramId, chatId, message.getContact());
         if (msg != null) {
-            reply.send(msg);
+            sendWithOptionalEdit(telegramId, msg, reply);
         }
     }
 
@@ -58,17 +62,20 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
         String text = message.getText();
 
         switch (text) {
-            case "/start" -> reply.send(startHandler.prepareStartMessage(message));
-            case "/help" -> reply.send(helpHandler.prepareHelpForUnregistered(chatId));
+            case "/start" -> {
+                anchorService.forget(telegramId);
+                reply.send(startHandler.prepareStartMessage(message));
+            }
+            case "/help" -> sendWithOptionalEdit(telegramId, helpHandler.prepareHelpForUnregistered(chatId), reply);
             default -> {
                 if (registrationHandler.isRegistering(telegramId)) {
                     SendMessage msg = registrationHandler.handleMessage(telegramId, chatId, text);
                     if (msg != null) {
-                        reply.send(msg);
+                        sendWithOptionalEdit(telegramId, msg, reply);
                     }
                 } else {
-                    reply.send(new SendMessage(chatId.toString(),
-                            "Сначала зарегистрируйтесь. Нажмите /start"));
+                    sendWithOptionalEdit(telegramId, new SendMessage(chatId.toString(),
+                            "Сначала зарегистрируйтесь. Нажмите /start"), reply);
                 }
             }
         }
@@ -82,6 +89,8 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
         Long chatId = message.getChatId();
         Integer messageId = message.getMessageId();
         String username = callback.getFrom().getUserName();
+
+        anchorService.remember(telegramId, messageId);
 
         switch (data) {
             case "REGISTER" -> {
@@ -100,18 +109,19 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
                 }
                 reply.sendOrEdit(msg, messageId);
             }
-            case "BACK_TO_LASTNAME", "BACK_TO_MANAGER_LASTNAME", "BACK_TO_SPECIALIST_LASTNAME" -> {
-                SendMessage msg = registrationHandler.handleBackCallback(telegramId, chatId, data);
-                if (msg != null) {
-                    reply.send(msg);
-                }
-            }
-            case "BACK_TO_FIRSTNAME", "BACK_TO_MANAGER_FIRSTNAME", "BACK_TO_SPECIALIST_FIRSTNAME" -> {
+            case "BACK_TO_LASTNAME", "BACK_TO_MANAGER_LASTNAME", "BACK_TO_SPECIALIST_LASTNAME",
+                 "BACK_TO_FIRSTNAME", "BACK_TO_MANAGER_FIRSTNAME", "BACK_TO_SPECIALIST_FIRSTNAME" -> {
                 SendMessage msg = registrationHandler.handleBackCallback(telegramId, chatId, data);
                 if (msg != null) {
                     reply.sendOrEdit(msg, messageId);
                 }
             }
         }
+    }
+
+    private void sendWithOptionalEdit(Long telegramId, SendMessage outgoing, TelegramReply reply) {
+        anchorService.currentMessageId(telegramId).ifPresentOrElse(
+                messageId -> reply.sendOrEdit(outgoing, messageId),
+                () -> reply.send(outgoing));
     }
 }

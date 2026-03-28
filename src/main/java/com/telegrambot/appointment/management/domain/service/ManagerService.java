@@ -31,6 +31,8 @@ public class ManagerService {
     private static final Logger log = LoggerFactory.getLogger(ManagerService.class);
     private static final String LINK_SPEC_PREFIX = "M_LNK_SP_";
     private static final String LINK_SVC_PREFIX = "M_LNK_SV_";
+    private static final String CALLBACK_MANAGER_MAIN_MENU = "MANAGER_MAIN_MENU";
+    private static final String CALLBACK_LINK_BACK_LIST = "M_LNK_BACK_LIST";
 
     private final ManagerRepository managerRepository;
     private final ManagerPendingActionRepository pendingActionRepository;
@@ -75,13 +77,16 @@ public class ManagerService {
     public SendMessage startLinkServiceFlow(Long chatId) {
         List<Specialist> specialists = specialistRepository.findAllWithServices();
         if (specialists.isEmpty()) {
-            return new SendMessage(chatId.toString(), "Нет зарегистрированных специалистов. Сначала добавьте специалиста в whitelist.");
+            return singleRowMessage(chatId,
+                    "Нет зарегистрированных специалистов. Сначала добавьте специалиста в whitelist.",
+                    inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
         }
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         for (Specialist s : specialists) {
             String label = s.getFirstname() + " " + s.getLastname() + " (@" + s.getUsername() + ")";
             rows.add(List.of(inlineBtn(label, LINK_SPEC_PREFIX + s.getId())));
         }
+        rows.add(List.of(inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)));
         SendMessage message = new SendMessage(chatId.toString(), "Выберите специалиста для привязки услуги:");
         message.setReplyMarkup(new InlineKeyboardMarkup(rows));
         return message;
@@ -91,15 +96,18 @@ public class ManagerService {
     public SendMessage handleLinkPickSpecialist(Long chatId, Integer specialistId) {
         Specialist specialist = specialistRepository.findById(specialistId).orElse(null);
         if (specialist == null) {
-            return new SendMessage(chatId.toString(), "Специалист не найден.");
+            return singleRowMessage(chatId, "Специалист не найден.",
+                    inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
         }
         Set<Integer> linkedIds = specialist.getServices().stream().map(Service::getId).collect(Collectors.toSet());
         List<Service> available = serviceRepository.findAll().stream()
                 .filter(s -> !linkedIds.contains(s.getId()))
                 .toList();
         if (available.isEmpty()) {
-            return new SendMessage(chatId.toString(),
-                    "У этого специалиста уже все услуги из каталога. Добавьте новую услугу через меню.");
+            return twoButtonRowMessage(chatId,
+                    "У этого специалиста уже все услуги из каталога. Добавьте новую услугу через меню.",
+                    inlineBtn("◀️ Назад", CALLBACK_LINK_BACK_LIST),
+                    inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
         }
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         for (Service service : available) {
@@ -107,6 +115,9 @@ public class ManagerService {
                     + service.getDurationMinutes() + " мин";
             rows.add(List.of(inlineBtn(label, LINK_SVC_PREFIX + specialistId + "_" + service.getId())));
         }
+        rows.add(List.of(
+                inlineBtn("◀️ Назад", CALLBACK_LINK_BACK_LIST),
+                inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)));
         SendMessage message = new SendMessage(chatId.toString(),
                 "Выберите услугу для «" + specialist.getFirstname() + " " + specialist.getLastname() + "»:");
         message.setReplyMarkup(new InlineKeyboardMarkup(rows));
@@ -118,17 +129,35 @@ public class ManagerService {
         Specialist specialist = specialistRepository.findById(specialistId).orElse(null);
         Service service = serviceRepository.findById(serviceId).orElse(null);
         if (specialist == null || service == null) {
-            return new SendMessage(chatId.toString(), "Специалист или услуга не найдены.");
+            return singleRowMessage(chatId, "Специалист или услуга не найдены.",
+                    inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
         }
         if (specialist.getServices().stream().anyMatch(s -> s.getId().equals(serviceId))) {
-            return new SendMessage(chatId.toString(), "Эта услуга уже назначена специалисту.");
+            return singleRowMessage(chatId, "Эта услуга уже назначена специалисту.",
+                    inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
         }
         specialist.getServices().add(service);
         specialistRepository.save(specialist);
         log.info("Linked serviceId={} to specialistId={}", serviceId, specialistId);
-        return new SendMessage(chatId.toString(),
+        SendMessage done = new SendMessage(chatId.toString(),
                 "✅ Услуга «" + service.getName() + "» назначена специалисту "
                         + specialist.getFirstname() + " " + specialist.getLastname() + ".");
+        done.setReplyMarkup(new InlineKeyboardMarkup(List.of(
+                List.of(inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)))));
+        return done;
+    }
+
+    private static SendMessage singleRowMessage(Long chatId, String text, InlineKeyboardButton button) {
+        SendMessage message = new SendMessage(chatId.toString(), text);
+        message.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(button))));
+        return message;
+    }
+
+    private static SendMessage twoButtonRowMessage(Long chatId, String text,
+                                                   InlineKeyboardButton first, InlineKeyboardButton second) {
+        SendMessage message = new SendMessage(chatId.toString(), text);
+        message.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(first, second))));
+        return message;
     }
 
     private static InlineKeyboardButton inlineBtn(String text, String callbackData) {
@@ -234,7 +263,8 @@ public class ManagerService {
     public SendMessage buildSpecialistListMessage(Long chatId) {
         List<Specialist> specialists = specialistRepository.findAllWithServices();
         if (specialists.isEmpty()) {
-            return new SendMessage(chatId.toString(), "👤 Специалистов пока нет.");
+            return singleRowMessage(chatId, "👤 Специалистов пока нет.",
+                    inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
         }
 
         StringBuilder text = new StringBuilder("👤 *Специалисты* (" + specialists.size() + "):\n\n");
@@ -258,6 +288,8 @@ public class ManagerService {
 
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
         message.setParseMode("Markdown");
+        message.setReplyMarkup(new InlineKeyboardMarkup(List.of(
+                List.of(inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)))));
         return message;
     }
 }

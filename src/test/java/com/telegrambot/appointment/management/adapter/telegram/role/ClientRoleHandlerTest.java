@@ -7,6 +7,7 @@ import com.telegrambot.appointment.management.adapter.telegram.handler.StartHand
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.service.AppointmentBookingService;
 import com.telegrambot.appointment.management.domain.service.ClientService;
+import com.telegrambot.appointment.management.infrastructure.service.TelegramMessageAnchorService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -19,8 +20,10 @@ import org.telegram.telegrambots.meta.api.objects.User;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,18 +40,20 @@ class ClientRoleHandlerTest {
     private AppointmentBookingService bookingService;
     @Mock
     private ClientService clientService;
+    @Mock
+    private TelegramMessageAnchorService anchorService;
 
     @Test
     void roleIsClient() {
         ClientRoleHandler handler = new ClientRoleHandler(
-                startHandler, menuHandler, helpHandler, bookingService, clientService);
+                startHandler, menuHandler, helpHandler, bookingService, clientService, anchorService);
         assertEquals(UserRole.CLIENT, handler.role());
     }
 
     @Test
     void startCommandDelegatesToStartHandler() {
         ClientRoleHandler handler = new ClientRoleHandler(
-                startHandler, menuHandler, helpHandler, bookingService, clientService);
+                startHandler, menuHandler, helpHandler, bookingService, clientService, anchorService);
         Message message = buildTextMessage(1L, 10L, "/start");
         SendMessage prepared = new SendMessage("10", "welcome");
         when(startHandler.prepareStartMessage(message)).thenReturn(prepared);
@@ -64,10 +69,11 @@ class ClientRoleHandlerTest {
     @Test
     void makeAppointmentDelegatesToBookingService() {
         ClientRoleHandler handler = new ClientRoleHandler(
-                startHandler, menuHandler, helpHandler, bookingService, clientService);
+                startHandler, menuHandler, helpHandler, bookingService, clientService, anchorService);
         Message message = buildTextMessage(2L, 20L, "/make_appointment");
         SendMessage bookingMsg = new SendMessage("20", "booking");
         when(bookingService.startBooking(2L, 20L)).thenReturn(bookingMsg);
+        when(anchorService.currentMessageId(any())).thenReturn(Optional.empty());
 
         List<BotApiMethod<?>> executed = new ArrayList<>();
         TelegramReply reply = new TelegramReply(executed::add);

@@ -11,6 +11,8 @@ import com.telegrambot.appointment.management.infrastructure.persistence.reposit
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -19,6 +21,8 @@ import java.util.List;
 
 @Service
 public class SpecialistService {
+
+    private static final String CALLBACK_MAIN_MENU = "SPECIALIST_MAIN_MENU";
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
@@ -46,7 +50,7 @@ public class SpecialistService {
                 .toList();
 
         if (services.isEmpty()) {
-            return new SendMessage(chatId.toString(), "💈 У вас пока нет привязанных услуг.");
+            return withMainMenuButton(chatId, "💈 У вас пока нет привязанных услуг.");
         }
 
         StringBuilder text = new StringBuilder("💈 Ваши услуги (").append(services.size()).append("):\n\n");
@@ -56,7 +60,7 @@ public class SpecialistService {
                     .append("\n   💰 ").append(service.getPrice().toPlainString()).append(" ₽")
                     .append("   ⏱ ").append(service.getDurationMinutes()).append(" мин\n\n");
         }
-        return new SendMessage(chatId.toString(), text.toString().trim());
+        return withMainMenuButton(chatId, text.toString().trim());
     }
 
     @Transactional(readOnly = true)
@@ -68,7 +72,7 @@ public class SpecialistService {
                 specialist.getId(), AppointmentStatus.CONFIRMED);
 
         if (appointments.isEmpty()) {
-            return new SendMessage(chatId.toString(), "📋 У вас нет активных записей.");
+            return withMainMenuButton(chatId, "📋 У вас нет активных записей.");
         }
 
         StringBuilder text = new StringBuilder("📋 *Ваши записи* (")
@@ -87,6 +91,7 @@ public class SpecialistService {
 
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
         message.setParseMode("Markdown");
+        message.setReplyMarkup(mainMenuMarkup());
         return message;
     }
 
@@ -100,7 +105,7 @@ public class SpecialistService {
                 specialist.getId(), today, today.plusDays(SCHEDULE_DAYS_AHEAD));
 
         if (schedules.isEmpty()) {
-            return new SendMessage(chatId.toString(), "📆 Расписание на ближайшие 7 дней пусто.");
+            return withMainMenuButton(chatId, "📆 Расписание на ближайшие 7 дней пусто.");
         }
 
         StringBuilder text = new StringBuilder("📆 *Ваше расписание на 7 дней:*\n\n");
@@ -125,6 +130,20 @@ public class SpecialistService {
 
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
         message.setParseMode("Markdown");
+        message.setReplyMarkup(mainMenuMarkup());
         return message;
+    }
+
+    private static SendMessage withMainMenuButton(Long chatId, String text) {
+        SendMessage message = new SendMessage(chatId.toString(), text);
+        message.setReplyMarkup(mainMenuMarkup());
+        return message;
+    }
+
+    private static InlineKeyboardMarkup mainMenuMarkup() {
+        InlineKeyboardButton button = new InlineKeyboardButton();
+        button.setText("◀️ В меню");
+        button.setCallbackData(CALLBACK_MAIN_MENU);
+        return new InlineKeyboardMarkup(List.of(List.of(button)));
     }
 }

@@ -13,6 +13,10 @@ import java.util.List;
 public class MenuHandler {
 
     public SendMessage prepareClientMenu(Message message, boolean notificationsEnabled) {
+        return prepareClientMenu(message.getChatId(), notificationsEnabled);
+    }
+
+    public SendMessage prepareClientMenu(Long chatId, boolean notificationsEnabled) {
         String text = EmojiParser.parseToUnicode("Меню клиента 📋");
 
         InlineKeyboardButton scheduleAppointment = button("📅 Записаться",    "APPOINTMENTS_SCHEDULE");
@@ -22,7 +26,7 @@ public class MenuHandler {
                 "TOGGLE_NOTIFICATIONS"
         );
 
-        SendMessage msg = new SendMessage(message.getChatId().toString(), text);
+        SendMessage msg = new SendMessage(chatId.toString(), text);
         msg.setReplyMarkup(new InlineKeyboardMarkup(List.of(
                 List.of(scheduleAppointment),
                 List.of(myAppointments),
@@ -32,6 +36,10 @@ public class MenuHandler {
     }
 
     public SendMessage prepareManagerMenu(Message message) {
+        return prepareManagerMenu(message.getChatId());
+    }
+
+    public SendMessage prepareManagerMenu(Long chatId) {
         String text = EmojiParser.parseToUnicode("Меню менеджера 🗂");
 
         InlineKeyboardButton addSpecialist = button("➕ Добавить специалиста", "MANAGER_ADD_SPECIALIST");
@@ -40,7 +48,7 @@ public class MenuHandler {
         InlineKeyboardButton addService    = button("💈 Добавить услугу", "MANAGER_ADD_SERVICE");
         InlineKeyboardButton linkService  = button("🔗 Привязать услугу", "MANAGER_LINK_SERVICE");
 
-        SendMessage msg = new SendMessage(message.getChatId().toString(), text);
+        SendMessage msg = new SendMessage(chatId.toString(), text);
         msg.setReplyMarkup(new InlineKeyboardMarkup(List.of(
                 List.of(addSpecialist),
                 List.of(specialists),
@@ -52,13 +60,17 @@ public class MenuHandler {
     }
 
     public SendMessage prepareSpecialistMenu(Message message) {
+        return prepareSpecialistMenu(message.getChatId());
+    }
+
+    public SendMessage prepareSpecialistMenu(Long chatId) {
         String text = EmojiParser.parseToUnicode("Меню специалиста 🛠");
 
         InlineKeyboardButton schedule     = button("📆 Моё расписание", "SPECIALIST_SCHEDULE");
         InlineKeyboardButton appointments = button("📋 Мои записи",     "SPECIALIST_APPOINTMENTS");
         InlineKeyboardButton services     = button("💈 Мои услуги",      "SPECIALIST_SERVICES");
 
-        SendMessage msg = new SendMessage(message.getChatId().toString(), text);
+        SendMessage msg = new SendMessage(chatId.toString(), text);
         msg.setReplyMarkup(new InlineKeyboardMarkup(List.of(
                 List.of(schedule),
                 List.of(appointments),

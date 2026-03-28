@@ -64,28 +64,25 @@ public class AppointmentBookingService {
         context.setTelegramId(telegramId);
         context.setStep(BookingStep.SELECT_PATH);
         bookingContextRepository.save(context);
-
-        InlineKeyboardButton byService    = btn("🔍 Выбрать услугу",      "BOOK_PATH_SERVICE");
-        InlineKeyboardButton bySpecialist = btn("👤 Выбрать специалиста", "BOOK_PATH_SPECIALIST");
-        InlineKeyboardButton cancel       = btn("❌ Отмена",               "BOOK_CANCEL");
-
-        return buildMessage(chatId, "Как хотите записаться?", List.of(
-                List.of(byService),
-                List.of(bySpecialist),
-                List.of(cancel)
-        ));
+        return buildPathSelectionMessage(chatId);
     }
 
     @Transactional
     public SendMessage handleCallback(Long telegramId, Long chatId, String data) {
         if ("BOOK_CANCEL".equals(data)) {
             bookingContextRepository.deleteById(telegramId);
-            return new SendMessage(chatId.toString(), "Запись отменена.");
+            return buildMessage(chatId, "Запись отменена.",
+                    List.of(List.of(btn("◀️ В меню", "CLIENT_MAIN_MENU"))));
         }
 
         BookingContext context = bookingContextRepository.findById(telegramId).orElse(null);
         if (context == null) {
-            return new SendMessage(chatId.toString(), "Сессия истекла. Начните заново: /make_appointment");
+            return buildMessage(chatId, "Сессия истекла. Начните заново: /make_appointment",
+                    List.of(List.of(btn("◀️ В меню", "CLIENT_MAIN_MENU"))));
+        }
+
+        if ("BOOK_NAV_BACK".equals(data)) {
+            return navigateBack(context, chatId);
         }
 
         return switch (context.getStep()) {
@@ -113,7 +110,8 @@ public class AppointmentBookingService {
                 client.getId(), AppointmentStatus.CONFIRMED);
 
         if (appointments.isEmpty()) {
-            return new SendMessage(chatId.toString(), "📋 У вас нет активных записей.");
+            return buildMessage(chatId, "📋 У вас нет активных записей.",
+                    List.of(List.of(btn("◀️ В меню", "CLIENT_MAIN_MENU"))));
         }
 
         StringBuilder text = new StringBuilder("📋 *Ваши записи* (")
@@ -139,6 +137,8 @@ public class AppointmentBookingService {
             )));
         }
 
+        rows.add(List.of(btn("◀️ В меню", "CLIENT_MAIN_MENU")));
+
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
         message.setParseMode("Markdown");
         message.setReplyMarkup(new InlineKeyboardMarkup(rows));
@@ -149,18 +149,20 @@ public class AppointmentBookingService {
     public SendMessage cancelAppointment(Long telegramId, Integer appointmentId, Long chatId) {
         Appointment appointment = appointmentRepository.findByIdWithSlotAndBookedSlots(appointmentId).orElse(null);
 
+        List<List<InlineKeyboardButton>> menuRow = List.of(List.of(btn("◀️ В меню", "CLIENT_MAIN_MENU")));
+
         if (appointment == null || !appointment.getClient().getTelegramId().equals(telegramId)) {
-            return new SendMessage(chatId.toString(), "⚠️ Запись не найдена.");
+            return buildMessage(chatId, "⚠️ Запись не найдена.", menuRow);
         }
         if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
-            return new SendMessage(chatId.toString(), "⚠️ Эта запись уже отменена.");
+            return buildMessage(chatId, "⚠️ Эта запись уже отменена.", menuRow);
         }
 
         releaseSlots(appointment);
         appointment.setStatus(AppointmentStatus.CANCELLED);
         appointmentRepository.save(appointment);
 
-        return new SendMessage(chatId.toString(), "✅ Запись отменена.");
+        return buildMessage(chatId, "✅ Запись отменена.", menuRow);
     }
 
     private SendMessage handlePathSelection(BookingContext context, Long chatId, String data) {
@@ -315,6 +317,7 @@ public class AppointmentBookingService {
                     "BOOK_SRV_" + s.getId()
             )));
         }
+        rows.add(List.of(btn("◀️ Назад", "BOOK_NAV_BACK")));
         rows.add(List.of(btn("❌ Отмена", "BOOK_CANCEL")));
         return buildMessage(chatId, "Выберите услугу:", rows);
     }
@@ -346,6 +349,7 @@ public class AppointmentBookingService {
                     "BOOK_SRV_" + s.getId()
             )));
         }
+        rows.add(List.of(btn("◀️ Назад", "BOOK_NAV_BACK")));
         rows.add(List.of(btn("❌ Отмена", "BOOK_CANCEL")));
         return buildMessage(chatId, "Выберите услугу:", rows);
     }
@@ -360,6 +364,7 @@ public class AppointmentBookingService {
         for (Schedule sc : schedules) {
             rows.add(List.of(btn(sc.getDate().format(DAY_FMT), "BOOK_DAY_" + sc.getId())));
         }
+        rows.add(List.of(btn("◀️ Назад", "BOOK_NAV_BACK")));
         rows.add(List.of(btn("❌ Отмена", "BOOK_CANCEL")));
         return buildMessage(chatId, "Выберите день:", rows);
     }
@@ -382,6 +387,7 @@ public class AppointmentBookingService {
             String label = startSlot.getStartTime().format(TIME_FMT) + " – " + endTime.format(TIME_FMT);
             rows.add(List.of(btn(label, "BOOK_SLOT_" + startSlot.getId())));
         }
+        rows.add(List.of(btn("◀️ Назад", "BOOK_NAV_BACK")));
         rows.add(List.of(btn("❌ Отмена", "BOOK_CANCEL")));
         return buildMessage(chatId, "Выберите время:", rows);
     }
@@ -412,8 +418,96 @@ public class AppointmentBookingService {
         );
         return buildMessage(chatId, text, List.of(
                 List.of(btn("✅ Подтвердить", "BOOK_CONFIRM")),
+                List.of(btn("◀️ Назад", "BOOK_NAV_BACK")),
                 List.of(btn("❌ Отмена", "BOOK_CANCEL"))
         ));
+    }
+
+    private SendMessage buildPathSelectionMessage(Long chatId) {
+        InlineKeyboardButton byService = btn("🔍 Выбрать услугу", "BOOK_PATH_SERVICE");
+        InlineKeyboardButton bySpecialist = btn("👤 Выбрать специалиста", "BOOK_PATH_SPECIALIST");
+        InlineKeyboardButton cancel = btn("❌ Отмена", "BOOK_CANCEL");
+        return buildMessage(chatId, "Как хотите записаться?", List.of(
+                List.of(byService),
+                List.of(bySpecialist),
+                List.of(cancel)
+        ));
+    }
+
+    private SendMessage navigateBack(BookingContext context, Long chatId) {
+        return switch (context.getStep()) {
+            case SELECT_PATH -> buildPathSelectionMessage(chatId);
+            case SELECT_SERVICE -> {
+                context.setStep(BookingStep.SELECT_PATH);
+                context.setPath(null);
+                context.setSelectedServiceId(null);
+                bookingContextRepository.save(context);
+                yield buildPathSelectionMessage(chatId);
+            }
+            case SELECT_SPECIALIST -> {
+                if (context.getPath() == BookingPath.BY_SERVICE) {
+                    context.setStep(BookingStep.SELECT_SERVICE);
+                    context.setSelectedSpecialistId(null);
+                    Integer serviceId = context.getSelectedServiceId();
+                    bookingContextRepository.save(context);
+                    yield showSpecialistsByService(chatId, serviceId);
+                }
+                context.setStep(BookingStep.SELECT_PATH);
+                context.setPath(null);
+                context.setSelectedSpecialistId(null);
+                bookingContextRepository.save(context);
+                yield buildPathSelectionMessage(chatId);
+            }
+            case SELECT_SPECIALIST_SERVICE -> {
+                context.setStep(BookingStep.SELECT_SPECIALIST);
+                context.setSelectedSpecialistId(null);
+                context.setSelectedServiceId(null);
+                bookingContextRepository.save(context);
+                yield showAllSpecialists(chatId);
+            }
+            case SELECT_DAY -> {
+                context.setSelectedScheduleId(null);
+                if (context.getPath() == BookingPath.BY_SERVICE) {
+                    context.setStep(BookingStep.SELECT_SPECIALIST);
+                    context.setSelectedSpecialistId(null);
+                    Integer serviceId = context.getSelectedServiceId();
+                    bookingContextRepository.save(context);
+                    if (serviceId == null) {
+                        yield unknownStep(chatId);
+                    }
+                    yield showSpecialistsByService(chatId, serviceId);
+                }
+                Integer specialistIdForServices = context.getSelectedSpecialistId();
+                context.setStep(BookingStep.SELECT_SPECIALIST_SERVICE);
+                context.setSelectedServiceId(null);
+                bookingContextRepository.save(context);
+                if (specialistIdForServices == null) {
+                    yield unknownStep(chatId);
+                }
+                yield showServicesBySpecialist(chatId, specialistIdForServices);
+            }
+            case SELECT_SLOT -> {
+                context.setStep(BookingStep.SELECT_DAY);
+                context.setSelectedSlotId(null);
+                Integer specialistId = context.getSelectedSpecialistId();
+                bookingContextRepository.save(context);
+                if (specialistId == null) {
+                    yield unknownStep(chatId);
+                }
+                yield showAvailableDays(chatId, specialistId);
+            }
+            case CONFIRM -> {
+                context.setStep(BookingStep.SELECT_SLOT);
+                context.setSelectedSlotId(null);
+                Integer scheduleId = context.getSelectedScheduleId();
+                Integer serviceId = context.getSelectedServiceId();
+                bookingContextRepository.save(context);
+                if (scheduleId == null || serviceId == null) {
+                    yield unknownStep(chatId);
+                }
+                yield showAvailableSlots(chatId, scheduleId, serviceId);
+            }
+        };
     }
 
     private SendMessage buildSpecialistList(Long chatId, List<Specialist> specialists, String header) {
@@ -421,6 +515,7 @@ public class AppointmentBookingService {
         for (Specialist sp : specialists) {
             rows.add(List.of(btn(sp.getFirstname() + " " + sp.getLastname(), "BOOK_SPEC_" + sp.getId())));
         }
+        rows.add(List.of(btn("◀️ Назад", "BOOK_NAV_BACK")));
         rows.add(List.of(btn("❌ Отмена", "BOOK_CANCEL")));
         return buildMessage(chatId, header, rows);
     }

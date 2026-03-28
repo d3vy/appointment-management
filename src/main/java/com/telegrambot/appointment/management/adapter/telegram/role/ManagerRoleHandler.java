@@ -7,6 +7,7 @@ import com.telegrambot.appointment.management.adapter.telegram.handler.StartHand
 import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.service.ManagerScheduleService;
 import com.telegrambot.appointment.management.domain.service.ManagerService;
+import com.telegrambot.appointment.management.infrastructure.service.TelegramMessageAnchorService;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -23,17 +24,20 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
     private final HelpHandler helpHandler;
     private final ManagerService managerService;
     private final ManagerScheduleService managerScheduleService;
+    private final TelegramMessageAnchorService anchorService;
 
     public ManagerRoleHandler(StartHandler startHandler,
                               MenuHandler menuHandler,
                               HelpHandler helpHandler,
                               ManagerService managerService,
-                              ManagerScheduleService managerScheduleService) {
+                              ManagerScheduleService managerScheduleService,
+                              TelegramMessageAnchorService anchorService) {
         this.startHandler = startHandler;
         this.menuHandler = menuHandler;
         this.helpHandler = helpHandler;
         this.managerService = managerService;
         this.managerScheduleService = managerScheduleService;
+        this.anchorService = anchorService;
     }
 
     @Override
@@ -50,23 +54,26 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
         if (managerScheduleService.hasActiveContext(telegramId)) {
             SendMessage msg = managerScheduleService.handleTextInput(telegramId, chatId, text);
             if (msg != null) {
-                reply.send(msg);
+                sendWithOptionalEdit(telegramId, msg, reply);
             }
             return;
         }
         if (managerService.hasPendingAction(telegramId)) {
             SendMessage msg = managerService.handlePendingAction(telegramId, chatId, text);
             if (msg != null) {
-                reply.send(msg);
+                sendWithOptionalEdit(telegramId, msg, reply);
             }
             return;
         }
         switch (text) {
-            case "/start" -> reply.send(startHandler.prepareStartMessage(message));
-            case "/menu" -> reply.send(menuHandler.prepareManagerMenu(message));
-            case "/help" -> reply.send(helpHandler.prepareHelpForManager(chatId));
-            default -> reply.send(new SendMessage(chatId.toString(),
-                    "Неизвестная команда. Используйте /help для списка команд."));
+            case "/start" -> {
+                anchorService.forget(telegramId);
+                reply.send(startHandler.prepareStartMessage(message));
+            }
+            case "/menu" -> sendWithOptionalEdit(telegramId, menuHandler.prepareManagerMenu(chatId), reply);
+            case "/help" -> sendWithOptionalEdit(telegramId, helpHandler.prepareHelpForManager(chatId), reply);
+            default -> sendWithOptionalEdit(telegramId, new SendMessage(chatId.toString(),
+                    "Неизвестная команда. Используйте /help для списка команд."), reply);
         }
     }
 
@@ -77,6 +84,17 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
         Message message = (Message) callback.getMessage();
         Long chatId = message.getChatId();
         Integer messageId = message.getMessageId();
+
+        anchorService.remember(telegramId, messageId);
+
+        if ("MANAGER_MAIN_MENU".equals(data)) {
+            reply.sendOrEdit(menuHandler.prepareManagerMenu(chatId), messageId);
+            return;
+        }
+        if ("M_LNK_BACK_LIST".equals(data)) {
+            reply.sendOrEdit(managerService.startLinkServiceFlow(chatId), messageId);
+            return;
+        }
 
         if (data.startsWith("SCHED_")) {
             if (data.startsWith("SCHED_DEL_DAY_")) {
@@ -122,5 +140,11 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
             case "MANAGER_SPECIALISTS" -> reply.sendOrEdit(managerService.buildSpecialistListMessage(chatId), messageId);
             case "MANAGER_SCHEDULE" -> reply.sendOrEdit(managerScheduleService.startScheduleFlow(telegramId, chatId), messageId);
         }
+    }
+
+    private void sendWithOptionalEdit(Long telegramId, SendMessage outgoing, TelegramReply reply) {
+        anchorService.currentMessageId(telegramId).ifPresentOrElse(
+                messageId -> reply.sendOrEdit(outgoing, messageId),
+                () -> reply.send(outgoing));
     }
 }
