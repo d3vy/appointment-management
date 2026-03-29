@@ -11,6 +11,7 @@ import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -51,6 +52,10 @@ public class AppointmentBot extends TelegramLongPollingBot {
             execute(method);
         } catch (TelegramApiException e) {
             if (method instanceof EditMessageText editMessageText) {
+                if (isBenignEditFailure(e)) {
+                    log.debug("EditMessageText not applied: {}", e.getMessage());
+                    return;
+                }
                 log.warn("EditMessageText failed, anchor cleared and sending new message: {}", e.getMessage());
                 forgetAnchorForPrivateChat(editMessageText.getChatId());
                 sendFallbackAfterEditFailure(editMessageText);
@@ -62,6 +67,15 @@ public class AppointmentBot extends TelegramLongPollingBot {
         }
     }
 
+    private static boolean isBenignEditFailure(TelegramApiException e) {
+        String message = e.getMessage();
+        if (message == null) {
+            return false;
+        }
+        String lower = message.toLowerCase();
+        return lower.contains("message is not modified");
+    }
+
     private void forgetAnchorForPrivateChat(Object chatIdRaw) {
         if (chatIdRaw == null) {
             return;
@@ -70,6 +84,17 @@ public class AppointmentBot extends TelegramLongPollingBot {
             telegramMessageAnchorService.forget(Long.parseLong(chatIdRaw.toString()));
         } catch (NumberFormatException ex) {
             log.debug("Anchor skip forget, non-numeric chatId: {}", chatIdRaw);
+        }
+    }
+
+    private void rememberAnchorForPrivateChat(Object chatIdRaw, Integer messageId) {
+        if (chatIdRaw == null || messageId == null) {
+            return;
+        }
+        try {
+            telegramMessageAnchorService.remember(Long.parseLong(chatIdRaw.toString()), messageId);
+        } catch (NumberFormatException ex) {
+            log.debug("Anchor skip remember, non-numeric chatId: {}", chatIdRaw);
         }
     }
 
@@ -88,7 +113,10 @@ public class AppointmentBot extends TelegramLongPollingBot {
             fallback.setReplyMarkup(edit.getReplyMarkup());
         }
         try {
-            execute(fallback);
+            Message sent = execute(fallback);
+            if (sent != null) {
+                rememberAnchorForPrivateChat(edit.getChatId(), sent.getMessageId());
+            }
         } catch (TelegramApiException ex) {
             log.error("Fallback SendMessage after edit failure: {}", ex.getMessage());
         }

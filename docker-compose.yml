@@ -16,6 +16,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-devredis}
+      ACTUATOR_USERNAME: ${ACTUATOR_USERNAME:-actuator}
+      ACTUATOR_PASSWORD: ${ACTUATOR_PASSWORD:-dev-actuator-secret}
     ports:
       - "8080:8080"
 

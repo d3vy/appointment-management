@@ -1,7 +1,7 @@
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /src
 COPY . .
-RUN chmod +x mvnw && ./mvnw -q -DskipTests package
+RUN chmod +x mvnw && ./mvnw -B -q verify
 
 FROM eclipse-temurin:21-jre-alpine
 ENV SPRING_PROFILES_ACTIVE=prod

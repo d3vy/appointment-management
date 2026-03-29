@@ -58,8 +58,11 @@ public class ClientRoleHandler implements TelegramRoleHandler {
                 anchorService.forget(telegramId);
                 reply.send(startHandler.prepareStartMessage(message));
             }
-            case "/menu" -> sendWithOptionalEdit(telegramId,
-                    menuHandler.prepareClientMenu(chatId, clientService.isNotificationsEnabled(telegramId)), reply);
+            case "/menu" -> {
+                bookingService.clearBookingContextIfPresent(telegramId);
+                sendWithOptionalEdit(telegramId,
+                        menuHandler.prepareClientMenu(chatId, clientService.isNotificationsEnabled(telegramId)), reply);
+            }
             case "/make_appointment" -> sendWithOptionalEdit(telegramId, bookingService.startBooking(telegramId, chatId), reply);
             case "/appointments" -> sendWithOptionalEdit(telegramId,
                     bookingService.buildClientAppointmentsMessage(telegramId, chatId), reply);
@@ -79,6 +82,7 @@ public class ClientRoleHandler implements TelegramRoleHandler {
         anchorService.remember(telegramId, messageId);
 
         if ("CLIENT_MAIN_MENU".equals(data)) {
+            bookingService.clearBookingContextIfPresent(telegramId);
             boolean enabled = clientService.isNotificationsEnabled(telegramId);
             reply.sendOrEdit(menuHandler.prepareClientMenu(chatId, enabled), messageId);
             return;
@@ -92,19 +96,21 @@ public class ClientRoleHandler implements TelegramRoleHandler {
             reply.sendOrEdit(bookingService.cancelAppointment(telegramId, appointmentId.get(), chatId), messageId);
             return;
         }
-        if (data.startsWith("BOOK_") || bookingService.isBooking(telegramId)) {
-            reply.sendOrEdit(bookingService.handleCallback(telegramId, chatId, data), messageId);
+        if ("APPOINTMENTS_SCHEDULE".equals(data)) {
+            reply.sendOrEdit(bookingService.startBooking(telegramId, chatId), messageId);
             return;
         }
-        switch (data) {
-            case "APPOINTMENTS_SCHEDULE" ->
-                    reply.sendOrEdit(bookingService.startBooking(telegramId, chatId), messageId);
-            case "APPOINTMENTS_MY" ->
-                    reply.sendOrEdit(bookingService.buildClientAppointmentsMessage(telegramId, chatId), messageId);
-            case "TOGGLE_NOTIFICATIONS" -> {
-                boolean enabled = clientService.toggleNotifications(telegramId);
-                reply.sendOrEdit(menuHandler.prepareClientMenu(chatId, enabled), messageId);
-            }
+        if ("APPOINTMENTS_MY".equals(data)) {
+            reply.sendOrEdit(bookingService.buildClientAppointmentsMessage(telegramId, chatId), messageId);
+            return;
+        }
+        if ("TOGGLE_NOTIFICATIONS".equals(data)) {
+            boolean enabled = clientService.toggleNotifications(telegramId);
+            reply.sendOrEdit(menuHandler.prepareClientMenu(chatId, enabled), messageId);
+            return;
+        }
+        if (data != null && data.startsWith("BOOK_")) {
+            reply.sendOrEdit(bookingService.handleCallback(telegramId, chatId, data), messageId);
         }
     }
 

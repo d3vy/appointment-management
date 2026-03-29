@@ -31,7 +31,7 @@ public class SpecialistService {
 
     private final SpecialistRepository specialistRepository;
     private final AppointmentRepository appointmentRepository;
-    private final ScheduleRepository  scheduleRepository;
+    private final ScheduleRepository scheduleRepository;
 
     public SpecialistService(SpecialistRepository specialistRepository,
                              AppointmentRepository appointmentRepository,

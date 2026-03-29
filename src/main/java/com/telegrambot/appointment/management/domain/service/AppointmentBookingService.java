@@ -88,19 +88,22 @@ public class AppointmentBookingService {
         }
 
         return switch (context.getStep()) {
-            case SELECT_PATH              -> handlePathSelection(context, chatId, data);
-            case SELECT_SERVICE           -> handleServiceSelection(context, chatId, data);
-            case SELECT_SPECIALIST        -> handleSpecialistSelection(context, chatId, data);
+            case SELECT_PATH -> handlePathSelection(context, chatId, data);
+            case SELECT_SERVICE -> handleServiceSelection(context, chatId, data);
+            case SELECT_SPECIALIST -> handleSpecialistSelection(context, chatId, data);
             case SELECT_SPECIALIST_SERVICE -> handleSpecialistServiceSelection(context, chatId, data);
-            case SELECT_DAY               -> handleDaySelection(context, chatId, data);
-            case SELECT_SLOT              -> handleSlotSelection(context, chatId, data);
-            case CONFIRM                  -> handleConfirmation(context, chatId, data);
+            case SELECT_DAY -> handleDaySelection(context, chatId, data);
+            case SELECT_SLOT -> handleSlotSelection(context, chatId, data);
+            case CONFIRM -> handleConfirmation(context, chatId, data);
             default -> messageWithClientMenu(chatId, "Неизвестный шаг. Начните заново: /make_appointment");
         };
     }
 
-    public boolean isBooking(Long telegramId) {
-        return bookingContextRepository.existsById(telegramId);
+    public void clearBookingContextIfPresent(Long telegramId) {
+        if (telegramId == null) {
+            return;
+        }
+        bookingContextRepository.deleteById(telegramId);
     }
 
     @Transactional(readOnly = true)
@@ -321,14 +324,14 @@ public class AppointmentBookingService {
 
         LocalTime endTime = startSlot.getStartTime().plusMinutes((long) slotsNeeded * 30);
         String text = String.format("""
-            ✅ Запись подтверждена!
-            
-            👤 Специалист: %s %s
-            💈 Услуга: %s
-            📅 Дата: %s
-            🕐 Время: %s – %s
-            💰 Стоимость: %s ₽
-            """,
+                        ✅ Запись подтверждена!
+                        
+                        👤 Специалист: %s %s
+                        💈 Услуга: %s
+                        📅 Дата: %s
+                        🕐 Время: %s – %s
+                        💰 Стоимость: %s ₽
+                        """,
                 specialist.getFirstname(), specialist.getLastname(),
                 service.getName(),
                 startSlot.getSchedule().getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
@@ -441,14 +444,14 @@ public class AppointmentBookingService {
         LocalTime endTime = slot.getStartTime().plusMinutes((long) slotsNeeded * 30);
 
         String text = String.format("""
-            Подтвердите запись:
-            
-            👤 Специалист: %s %s
-            💈 Услуга: %s (%s мин)
-            📅 Дата: %s
-            🕐 Время: %s – %s
-            💰 Стоимость: %s ₽
-            """,
+                        Подтвердите запись:
+                        
+                        👤 Специалист: %s %s
+                        💈 Услуга: %s (%s мин)
+                        📅 Дата: %s
+                        🕐 Время: %s – %s
+                        💰 Стоимость: %s ₽
+                        """,
                 specialist.getFirstname(), specialist.getLastname(),
                 service.getName(), service.getDurationMinutes(),
                 slot.getSchedule().getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
