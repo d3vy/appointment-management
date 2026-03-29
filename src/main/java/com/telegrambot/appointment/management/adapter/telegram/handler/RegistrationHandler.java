@@ -283,7 +283,7 @@ public class RegistrationHandler {
         manager.setUsername(context.getUsername());
         managerRepository.save(manager);
         managerWhitelistRepository.deleteById(context.getUsername());
-        log.info("Manager registered and removed from whitelist: username={}", context.getUsername());
+        log.debug("Manager registered and removed from whitelist");
     }
 
     @Transactional
@@ -296,7 +296,7 @@ public class RegistrationHandler {
         specialist.setUsername(context.getUsername());
         specialistRepository.save(specialist);
         specialistWhitelistRepository.deleteById(context.getUsername());
-        log.info("Specialist registered and removed from whitelist: username={}", context.getUsername());
+        log.debug("Specialist registered and removed from whitelist");
     }
 
     private SendMessage prepareAskLastnameMessage(Long chatId, String backCallback) {

@@ -8,6 +8,7 @@ import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.service.ManagerScheduleService;
 import com.telegrambot.appointment.management.domain.service.ManagerService;
 import com.telegrambot.appointment.management.infrastructure.service.TelegramMessageAnchorService;
+import com.telegrambot.appointment.management.infrastructure.telegram.TelegramCallbackIntParser;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -109,38 +110,71 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
 
         if (data.startsWith("SCHED_")) {
             if (data.startsWith("SCHED_DEL_DAY_")) {
-                int scheduleId = Integer.parseInt(data.replace("SCHED_DEL_DAY_", ""));
-                reply.sendOrEdit(managerScheduleService.deleteDayWithCheck(telegramId, chatId, scheduleId), messageId);
+                var scheduleId = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "SCHED_DEL_DAY_");
+                if (scheduleId.isEmpty()) {
+                    reply.sendOrEdit(invalidManagerCallback(chatId), messageId);
+                    return;
+                }
+                reply.sendOrEdit(
+                        managerScheduleService.deleteDayWithCheck(telegramId, chatId, scheduleId.get()), messageId);
             } else if (data.startsWith("SCHED_DEL_CONFIRM_")) {
-                int scheduleId = Integer.parseInt(data.replace("SCHED_DEL_CONFIRM_", ""));
-                reply.sendOrEdit(managerScheduleService.confirmDeleteDay(chatId, scheduleId), messageId);
+                var scheduleId = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "SCHED_DEL_CONFIRM_");
+                if (scheduleId.isEmpty()) {
+                    reply.sendOrEdit(invalidManagerCallback(chatId), messageId);
+                    return;
+                }
+                reply.sendOrEdit(
+                        managerScheduleService.confirmDeleteDay(telegramId, chatId, scheduleId.get()), messageId);
             } else if (data.startsWith("SCHED_DAY_")) {
-                int scheduleId = Integer.parseInt(data.replace("SCHED_DAY_", ""));
-                reply.sendOrEdit(managerScheduleService.buildDayDetailMessage(chatId, scheduleId), messageId);
+                var scheduleId = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "SCHED_DAY_");
+                if (scheduleId.isEmpty()) {
+                    reply.sendOrEdit(invalidManagerCallback(chatId), messageId);
+                    return;
+                }
+                reply.sendOrEdit(
+                        managerScheduleService.buildDayDetailMessage(telegramId, chatId, scheduleId.get()),
+                        messageId);
             } else if (data.startsWith("SCHED_BACK_TO_DAY_")) {
-                int specialistId = Integer.parseInt(data.replace("SCHED_BACK_TO_DAY_", ""));
-                reply.sendOrEdit(managerScheduleService.buildSpecialistScheduleMessage(chatId, specialistId), messageId);
+                var specialistId = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "SCHED_BACK_TO_DAY_");
+                if (specialistId.isEmpty()) {
+                    reply.sendOrEdit(invalidManagerCallback(chatId), messageId);
+                    return;
+                }
+                reply.sendOrEdit(
+                        managerScheduleService.buildSpecialistScheduleMessage(chatId, specialistId.get()),
+                        messageId);
             } else if (data.startsWith("SCHED_BACK_TO_SPECIALISTS")) {
                 reply.sendOrEdit(managerScheduleService.startScheduleFlow(telegramId, chatId), messageId);
             } else if (data.startsWith("SCHED_ADD_")) {
-                int specialistId = Integer.parseInt(data.replace("SCHED_ADD_", ""));
-                reply.sendOrEdit(managerScheduleService.startAddDaysFlow(telegramId, chatId, specialistId), messageId);
+                var specialistId = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "SCHED_ADD_");
+                if (specialistId.isEmpty()) {
+                    reply.sendOrEdit(invalidManagerCallback(chatId), messageId);
+                    return;
+                }
+                reply.sendOrEdit(
+                        managerScheduleService.startAddDaysFlow(telegramId, chatId, specialistId.get()), messageId);
             } else {
                 reply.sendOrEdit(managerScheduleService.handleCallback(telegramId, chatId, data), messageId);
             }
             return;
         }
         if (data.startsWith(LINK_SPEC_PREFIX)) {
-            int specialistId = Integer.parseInt(data.substring(LINK_SPEC_PREFIX.length()));
-            reply.sendOrEdit(managerService.handleLinkPickSpecialist(chatId, specialistId), messageId);
+            var specialistId = TelegramCallbackIntParser.parsePositiveIntSuffix(data, LINK_SPEC_PREFIX);
+            if (specialistId.isEmpty()) {
+                reply.sendOrEdit(invalidManagerCallback(chatId), messageId);
+                return;
+            }
+            reply.sendOrEdit(managerService.handleLinkPickSpecialist(chatId, specialistId.get()), messageId);
             return;
         }
         if (data.startsWith(LINK_SVC_PREFIX)) {
-            String payload = data.substring(LINK_SVC_PREFIX.length());
-            int underscore = payload.indexOf('_');
-            int specialistId = Integer.parseInt(payload.substring(0, underscore));
-            int serviceId = Integer.parseInt(payload.substring(underscore + 1));
-            reply.sendOrEdit(managerService.confirmLinkService(chatId, specialistId, serviceId), messageId);
+            var pair = TelegramCallbackIntParser.parseTwoPositiveIdsUnderscore(data.substring(LINK_SVC_PREFIX.length()));
+            if (pair.isEmpty()) {
+                reply.sendOrEdit(invalidManagerCallback(chatId), messageId);
+                return;
+            }
+            var ids = pair.get();
+            reply.sendOrEdit(managerService.confirmLinkService(chatId, ids.first(), ids.second()), messageId);
             return;
         }
         switch (data) {
@@ -159,6 +193,16 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
         menu.setCallbackData("MANAGER_MAIN_MENU");
         SendMessage outgoing = new SendMessage(chatId.toString(),
                 "Неизвестная команда. Используйте /help для списка команд.");
+        outgoing.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(menu))));
+        return outgoing;
+    }
+
+    private static SendMessage invalidManagerCallback(Long chatId) {
+        InlineKeyboardButton menu = new InlineKeyboardButton();
+        menu.setText("◀️ В меню");
+        menu.setCallbackData("MANAGER_MAIN_MENU");
+        SendMessage outgoing = new SendMessage(chatId.toString(),
+                "Действие недействительно. Откройте /menu.");
         outgoing.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(menu))));
         return outgoing;
     }

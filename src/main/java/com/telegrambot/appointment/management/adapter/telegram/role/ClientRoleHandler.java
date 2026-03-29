@@ -8,6 +8,7 @@ import com.telegrambot.appointment.management.domain.model.user.UserRole;
 import com.telegrambot.appointment.management.domain.service.AppointmentBookingService;
 import com.telegrambot.appointment.management.domain.service.ClientService;
 import com.telegrambot.appointment.management.infrastructure.service.TelegramMessageAnchorService;
+import com.telegrambot.appointment.management.infrastructure.telegram.TelegramCallbackIntParser;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -83,8 +84,12 @@ public class ClientRoleHandler implements TelegramRoleHandler {
             return;
         }
         if (data.startsWith("CANCEL_APPT_")) {
-            Integer appointmentId = Integer.parseInt(data.replace("CANCEL_APPT_", ""));
-            reply.sendOrEdit(bookingService.cancelAppointment(telegramId, appointmentId, chatId), messageId);
+            var appointmentId = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "CANCEL_APPT_");
+            if (appointmentId.isEmpty()) {
+                reply.sendOrEdit(invalidClientCallback(chatId), messageId);
+                return;
+            }
+            reply.sendOrEdit(bookingService.cancelAppointment(telegramId, appointmentId.get(), chatId), messageId);
             return;
         }
         if (data.startsWith("BOOK_") || bookingService.isBooking(telegramId)) {
@@ -109,6 +114,16 @@ public class ClientRoleHandler implements TelegramRoleHandler {
         menu.setCallbackData("CLIENT_MAIN_MENU");
         SendMessage outgoing = new SendMessage(chatId.toString(),
                 "Неизвестная команда. Используйте /help для списка команд.");
+        outgoing.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(menu))));
+        return outgoing;
+    }
+
+    private static SendMessage invalidClientCallback(Long chatId) {
+        InlineKeyboardButton menu = new InlineKeyboardButton();
+        menu.setText("◀️ В меню");
+        menu.setCallbackData("CLIENT_MAIN_MENU");
+        SendMessage outgoing = new SendMessage(chatId.toString(),
+                "Действие недействительно. Откройте /menu.");
         outgoing.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(menu))));
         return outgoing;
     }

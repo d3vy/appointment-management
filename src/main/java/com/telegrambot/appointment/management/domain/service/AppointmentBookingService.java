@@ -13,6 +13,8 @@ import com.telegrambot.appointment.management.infrastructure.persistence.reposit
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.client.ClientRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.context.BookingContextRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
+import com.telegrambot.appointment.management.infrastructure.telegram.TelegramCallbackIntParser;
+import com.telegrambot.appointment.management.infrastructure.telegram.TelegramDisplayHtml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -114,7 +116,7 @@ public class AppointmentBookingService {
                     List.of(List.of(btn("◀️ В меню", "CLIENT_MAIN_MENU"))));
         }
 
-        StringBuilder text = new StringBuilder("📋 *Ваши записи* (")
+        StringBuilder text = new StringBuilder("📋 <b>Ваши записи</b> (")
                 .append(appointments.size()).append("):\n\n");
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
@@ -125,9 +127,9 @@ public class AppointmentBookingService {
             text.append(i + 1).append(". ")
                     .append(slot.getSchedule().getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")))
                     .append(" в ").append(slot.getStartTime().format(TIME_FMT))
-                    .append("\n   👤 ").append(appointment.getSpecialist().getFirstname())
-                    .append(" ").append(appointment.getSpecialist().getLastname())
-                    .append("\n   💈 ").append(appointment.getService().getName())
+                    .append("\n   👤 ").append(TelegramDisplayHtml.escape(appointment.getSpecialist().getFirstname()))
+                    .append(" ").append(TelegramDisplayHtml.escape(appointment.getSpecialist().getLastname()))
+                    .append("\n   💈 ").append(TelegramDisplayHtml.escape(appointment.getService().getName()))
                     .append(" — ").append(appointment.getService().getPrice().toPlainString()).append(" ₽")
                     .append("\n\n");
 
@@ -140,7 +142,7 @@ public class AppointmentBookingService {
         rows.add(List.of(btn("◀️ В меню", "CLIENT_MAIN_MENU")));
 
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
-        message.setParseMode("Markdown");
+        message.setParseMode("HTML");
         message.setReplyMarkup(new InlineKeyboardMarkup(rows));
         return message;
     }
@@ -184,8 +186,11 @@ public class AppointmentBookingService {
     }
 
     private SendMessage handleServiceSelection(BookingContext context, Long chatId, String data) {
-        if (!data.startsWith("BOOK_SRV_")) return unknownStep(chatId);
-        int serviceId = Integer.parseInt(data.replace("BOOK_SRV_", ""));
+        var serviceIdOpt = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "BOOK_SRV_");
+        if (serviceIdOpt.isEmpty() || serviceRepository.findById(serviceIdOpt.get()).isEmpty()) {
+            return unknownStep(chatId);
+        }
+        int serviceId = serviceIdOpt.get();
         context.setSelectedServiceId(serviceId);
         context.setStep(BookingStep.SELECT_SPECIALIST);
         bookingContextRepository.save(context);
@@ -193,8 +198,11 @@ public class AppointmentBookingService {
     }
 
     private SendMessage handleSpecialistSelection(BookingContext context, Long chatId, String data) {
-        if (!data.startsWith("BOOK_SPEC_")) return unknownStep(chatId);
-        int specialistId = Integer.parseInt(data.replace("BOOK_SPEC_", ""));
+        var specialistIdOpt = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "BOOK_SPEC_");
+        if (specialistIdOpt.isEmpty() || specialistRepository.findById(specialistIdOpt.get()).isEmpty()) {
+            return unknownStep(chatId);
+        }
+        int specialistId = specialistIdOpt.get();
         context.setSelectedSpecialistId(specialistId);
 
         if (context.getPath() == BookingPath.BY_SPECIALIST) {
@@ -209,8 +217,16 @@ public class AppointmentBookingService {
     }
 
     private SendMessage handleSpecialistServiceSelection(BookingContext context, Long chatId, String data) {
-        if (!data.startsWith("BOOK_SRV_")) return unknownStep(chatId);
-        int serviceId = Integer.parseInt(data.replace("BOOK_SRV_", ""));
+        var serviceIdOpt = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "BOOK_SRV_");
+        if (serviceIdOpt.isEmpty()) {
+            return unknownStep(chatId);
+        }
+        int serviceId = serviceIdOpt.get();
+        Specialist specialist = specialistRepository.findById(context.getSelectedSpecialistId()).orElse(null);
+        if (specialist == null
+                || specialist.getServices().stream().noneMatch(s -> s.getId().equals(serviceId))) {
+            return unknownStep(chatId);
+        }
         context.setSelectedServiceId(serviceId);
         context.setStep(BookingStep.SELECT_DAY);
         bookingContextRepository.save(context);
@@ -218,8 +234,16 @@ public class AppointmentBookingService {
     }
 
     private SendMessage handleDaySelection(BookingContext context, Long chatId, String data) {
-        if (!data.startsWith("BOOK_DAY_")) return unknownStep(chatId);
-        int scheduleId = Integer.parseInt(data.replace("BOOK_DAY_", ""));
+        var scheduleIdOpt = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "BOOK_DAY_");
+        if (scheduleIdOpt.isEmpty()) {
+            return unknownStep(chatId);
+        }
+        Schedule schedule = scheduleRepository.findById(scheduleIdOpt.get()).orElse(null);
+        if (schedule == null
+                || !schedule.getSpecialist().getId().equals(context.getSelectedSpecialistId())) {
+            return unknownStep(chatId);
+        }
+        int scheduleId = scheduleIdOpt.get();
         context.setSelectedScheduleId(scheduleId);
         context.setStep(BookingStep.SELECT_SLOT);
         bookingContextRepository.save(context);
@@ -227,8 +251,17 @@ public class AppointmentBookingService {
     }
 
     private SendMessage handleSlotSelection(BookingContext context, Long chatId, String data) {
-        if (!data.startsWith("BOOK_SLOT_")) return unknownStep(chatId);
-        int slotId = Integer.parseInt(data.replace("BOOK_SLOT_", ""));
+        var slotIdOpt = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "BOOK_SLOT_");
+        if (slotIdOpt.isEmpty()) {
+            return unknownStep(chatId);
+        }
+        ScheduleSlot slot = slotRepository.findById(slotIdOpt.get()).orElse(null);
+        if (slot == null
+                || !slot.getSchedule().getId().equals(context.getSelectedScheduleId())
+                || !slot.getSchedule().getSpecialist().getId().equals(context.getSelectedSpecialistId())) {
+            return unknownStep(chatId);
+        }
+        int slotId = slotIdOpt.get();
         context.setSelectedSlotId(slotId);
         context.setStep(BookingStep.CONFIRM);
         bookingContextRepository.save(context);

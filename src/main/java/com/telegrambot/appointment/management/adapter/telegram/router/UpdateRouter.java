@@ -35,6 +35,10 @@ public class UpdateRouter {
     public void route(Update update, TelegramReply reply) {
         if (update.hasMessage()) {
             Message message = update.getMessage();
+            if (!message.getChat().isUserChat()) {
+                log.debug("Ignoring update: chatId={} type={}", message.getChatId(), message.getChat().getType());
+                return;
+            }
             if (message.hasText()) {
                 Optional<String> tauntReply = tryTauntReply(message);
                 if (tauntReply.isPresent()) {
@@ -46,6 +50,12 @@ public class UpdateRouter {
                 handleContact(message, reply);
             }
         } else if (update.hasCallbackQuery()) {
+            if (update.getCallbackQuery().getMessage() instanceof Message callbackMessage
+                    && !callbackMessage.getChat().isUserChat()) {
+                log.debug("Ignoring callback: chatId={} type={}",
+                        callbackMessage.getChatId(), callbackMessage.getChat().getType());
+                return;
+            }
             handleCallback(update, reply);
         }
     }

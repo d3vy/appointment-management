@@ -1,3 +1,5 @@
+# Dev-oriented stack. For production: do not publish Postgres/Redis ports publicly, terminate TLS in front
+# of the app (8080), use strong DB_PASSWORD and REDIS_PASSWORD, and set SPRING_PROFILES_ACTIVE=prod.
 services:
   app:
     build: .

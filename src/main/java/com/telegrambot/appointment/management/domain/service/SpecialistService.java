@@ -8,6 +8,7 @@ import com.telegrambot.appointment.management.domain.model.user.specialist.Speci
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.AppointmentRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
+import com.telegrambot.appointment.management.infrastructure.telegram.TelegramDisplayHtml;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -75,7 +76,7 @@ public class SpecialistService {
             return withMainMenuButton(chatId, "📋 У вас нет активных записей.");
         }
 
-        StringBuilder text = new StringBuilder("📋 *Ваши записи* (")
+        StringBuilder text = new StringBuilder("📋 <b>Ваши записи</b> (")
                 .append(appointments.size()).append("):\n\n");
 
         for (int i = 0; i < appointments.size(); i++) {
@@ -83,14 +84,14 @@ public class SpecialistService {
             text.append(i + 1).append(". ")
                     .append(appointment.getSlot().getSchedule().getDate().format(DATE_FMT))
                     .append(" в ").append(appointment.getSlot().getStartTime().format(TIME_FMT))
-                    .append("\n   👤 ").append(appointment.getClient().getFirstname())
-                    .append(" ").append(appointment.getClient().getLastname())
-                    .append("\n   💈 ").append(appointment.getService().getName())
+                    .append("\n   👤 ").append(TelegramDisplayHtml.escape(appointment.getClient().getFirstname()))
+                    .append(" ").append(TelegramDisplayHtml.escape(appointment.getClient().getLastname()))
+                    .append("\n   💈 ").append(TelegramDisplayHtml.escape(appointment.getService().getName()))
                     .append("\n\n");
         }
 
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
-        message.setParseMode("Markdown");
+        message.setParseMode("HTML");
         message.setReplyMarkup(mainMenuMarkup());
         return message;
     }
@@ -108,7 +109,7 @@ public class SpecialistService {
             return withMainMenuButton(chatId, "📆 Расписание на ближайшие 7 дней пусто.");
         }
 
-        StringBuilder text = new StringBuilder("📆 *Ваше расписание на 7 дней:*\n\n");
+        StringBuilder text = new StringBuilder("📆 <b>Ваше расписание на 7 дней:</b>\n\n");
         for (Schedule schedule : schedules) {
             text.append("📅 ").append(schedule.getDate().format(DATE_FMT)).append("\n");
 
@@ -129,7 +130,7 @@ public class SpecialistService {
         text.append("🟢 — свободно   🔴 — занято");
 
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
-        message.setParseMode("Markdown");
+        message.setParseMode("HTML");
         message.setReplyMarkup(mainMenuMarkup());
         return message;
     }

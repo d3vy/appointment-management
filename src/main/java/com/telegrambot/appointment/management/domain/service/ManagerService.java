@@ -10,6 +10,7 @@ import com.telegrambot.appointment.management.infrastructure.persistence.reposit
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.context.ManagerPendingActionRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
+import com.telegrambot.appointment.management.infrastructure.telegram.TelegramDisplayHtml;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistWhitelistRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -240,7 +241,7 @@ public class ManagerService {
         entry.setUsername(username);
         specialistWhitelistRepository.save(entry);
         pendingActionRepository.deleteById(telegramId);
-        log.info("Specialist username '{}' added to specialist whitelist by telegramId={}", username, telegramId);
+        log.info("Specialist added to specialist whitelist by telegramId={}", telegramId);
         return singleRowMessage(chatId,
                 String.format("✅ @%s добавлен в whitelist специалистов.", username),
                 inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
@@ -315,19 +316,21 @@ public class ManagerService {
                     inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
         }
 
-        StringBuilder text = new StringBuilder("👤 *Специалисты* (" + specialists.size() + "):\n\n");
+        StringBuilder text = new StringBuilder("👤 <b>Специалисты</b> (").append(specialists.size()).append("):\n\n");
         for (int i = 0; i < specialists.size(); i++) {
             Specialist specialist = specialists.get(i);
             text.append(i + 1).append(". ")
-                    .append(specialist.getFirstname()).append(" ").append(specialist.getLastname())
-                    .append(" (@").append(specialist.getUsername()).append(")\n");
+                    .append(TelegramDisplayHtml.escape(specialist.getFirstname())).append(" ")
+                    .append(TelegramDisplayHtml.escape(specialist.getLastname())).append(" (@")
+                    .append(TelegramDisplayHtml.escape(specialist.getUsername())).append(")\n");
 
             Set<Service> services = specialist.getServices();
             if (services.isEmpty()) {
-                text.append("   _услуги не назначены_\n");
+                text.append("   <i>услуги не назначены</i>\n");
             } else {
                 String serviceNames = services.stream()
                         .map(Service::getName)
+                        .map(TelegramDisplayHtml::escape)
                         .collect(Collectors.joining(", "));
                 text.append("   💈 ").append(serviceNames).append("\n");
             }
@@ -335,7 +338,7 @@ public class ManagerService {
         }
 
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
-        message.setParseMode("Markdown");
+        message.setParseMode("HTML");
         message.setReplyMarkup(new InlineKeyboardMarkup(List.of(
                 List.of(inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)))));
         return message;

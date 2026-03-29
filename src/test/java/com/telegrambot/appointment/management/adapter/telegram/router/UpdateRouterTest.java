@@ -79,6 +79,7 @@ class UpdateRouterTest {
         cq.setFrom(user);
         var chat = new Chat();
         chat.setId(9009L);
+        chat.setType("private");
         var msg = new Message();
         msg.setChat(chat);
         msg.setMessageId(1);
@@ -108,6 +109,7 @@ class UpdateRouterTest {
 
         Chat chat = new Chat();
         chat.setId(chatId);
+        chat.setType("private");
 
         Message message = new Message();
         message.setFrom(user);

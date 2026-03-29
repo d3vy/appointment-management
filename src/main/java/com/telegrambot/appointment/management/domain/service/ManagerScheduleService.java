@@ -15,6 +15,8 @@ import com.telegrambot.appointment.management.infrastructure.persistence.reposit
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.context.ManagerScheduleContextRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
+import com.telegrambot.appointment.management.infrastructure.telegram.TelegramCallbackIntParser;
+import com.telegrambot.appointment.management.infrastructure.telegram.TelegramDisplayHtml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -90,6 +92,14 @@ public class ManagerScheduleService {
         return message;
     }
 
+    private static boolean managerOwnsSchedule(Long managerTelegramId, Schedule schedule) {
+        return schedule.getCreatedBy().getTelegramId().equals(managerTelegramId);
+    }
+
+    private SendMessage scheduleAccessDenied(Long chatId) {
+        return messageWithMenu(chatId, "Нет доступа к этому расписанию.");
+    }
+
     @Transactional
     public SendMessage handleCallback(Long telegramId, Long chatId, String data) {
         ManagerScheduleContext context = scheduleContextRepository.findById(telegramId).orElse(null);
@@ -121,8 +131,14 @@ public class ManagerScheduleService {
     }
 
     private SendMessage handleSpecialistSelection(ManagerScheduleContext context, Long chatId, String data) {
-        if (!data.startsWith("SCHED_SPEC_")) return unknownAction(chatId);
-        int specialistId = Integer.parseInt(data.replace("SCHED_SPEC_", ""));
+        var specialistIdOpt = TelegramCallbackIntParser.parsePositiveIntSuffix(data, "SCHED_SPEC_");
+        if (specialistIdOpt.isEmpty()) {
+            return unknownAction(chatId);
+        }
+        int specialistId = specialistIdOpt.get();
+        if (specialistRepository.findById(specialistId).isEmpty()) {
+            return unknownAction(chatId);
+        }
         context.setSelectedSpecialistId(specialistId);
         context.setStep(ManagerScheduleStep.SELECT_DATES);
         scheduleContextRepository.save(context);
@@ -253,9 +269,11 @@ public class ManagerScheduleService {
         List<Schedule> schedules = scheduleRepository.findBySpecialistIdWithSlots(
                 specialist.getId(), today, today.plusDays(7));
 
-        StringBuilder text = new StringBuilder("📆 *Расписание: ")
-                .append(specialist.getFirstname()).append(" ").append(specialist.getLastname())
-                .append("*\n\n");
+        String fn = TelegramDisplayHtml.escape(specialist.getFirstname());
+        String ln = TelegramDisplayHtml.escape(specialist.getLastname());
+        StringBuilder text = new StringBuilder("📆 <b>Расписание: ")
+                .append(fn).append(" ").append(ln)
+                .append("</b>\n\n");
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
@@ -285,20 +303,26 @@ public class ManagerScheduleService {
         rows.add(List.of(btn("◀️ Назад", "SCHED_BACK_TO_SPECIALISTS")));
 
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
-        message.setParseMode("Markdown");
+        message.setParseMode("HTML");
         message.setReplyMarkup(new InlineKeyboardMarkup(rows));
         return message;
     }
 
     @Transactional(readOnly = true)
-    public SendMessage buildDayDetailMessage(Long chatId, Integer scheduleId) {
-        Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow();
+    public SendMessage buildDayDetailMessage(Long telegramId, Long chatId, Integer scheduleId) {
+        Schedule schedule = scheduleRepository.findById(scheduleId).orElse(null);
+        if (schedule == null) {
+            return messageWithMenu(chatId, "Расписание не найдено.");
+        }
+        if (!managerOwnsSchedule(telegramId, schedule)) {
+            return scheduleAccessDenied(chatId);
+        }
         List<ScheduleSlot> slots = slotRepository.findAllByScheduleIdOrdered(scheduleId);
 
-        StringBuilder text = new StringBuilder("📅 *")
-                .append(schedule.getDate().format(DATE_FULL_FMT)).append("*\n")
-                .append(schedule.getSpecialist().getFirstname()).append(" ")
-                .append(schedule.getSpecialist().getLastname()).append("\n\n");
+        StringBuilder text = new StringBuilder("📅 <b>")
+                .append(schedule.getDate().format(DATE_FULL_FMT)).append("</b>\n")
+                .append(TelegramDisplayHtml.escape(schedule.getSpecialist().getFirstname())).append(" ")
+                .append(TelegramDisplayHtml.escape(schedule.getSpecialist().getLastname())).append("\n\n");
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
@@ -313,14 +337,20 @@ public class ManagerScheduleService {
         rows.add(List.of(btn("◀️ Назад", "SCHED_BACK_TO_DAY_" + schedule.getSpecialist().getId())));
 
         SendMessage message = new SendMessage(chatId.toString(), text.toString().trim());
-        message.setParseMode("Markdown");
+        message.setParseMode("HTML");
         message.setReplyMarkup(new InlineKeyboardMarkup(rows));
         return message;
     }
 
     @Transactional
     public SendMessage deleteDayWithCheck(Long telegramId, Long chatId, Integer scheduleId) {
-        Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow();
+        Schedule schedule = scheduleRepository.findById(scheduleId).orElse(null);
+        if (schedule == null) {
+            return messageWithMenu(chatId, "Расписание не найдено.");
+        }
+        if (!managerOwnsSchedule(telegramId, schedule)) {
+            return scheduleAccessDenied(chatId);
+        }
         List<Appointment> activeAppointments = appointmentRepository
                 .findConfirmedByScheduleId(scheduleId);
 
@@ -344,8 +374,14 @@ public class ManagerScheduleService {
     }
 
     @Transactional
-    public SendMessage confirmDeleteDay(Long chatId, Integer scheduleId) {
-        Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow();
+    public SendMessage confirmDeleteDay(Long telegramId, Long chatId, Integer scheduleId) {
+        Schedule schedule = scheduleRepository.findById(scheduleId).orElse(null);
+        if (schedule == null) {
+            return messageWithMenu(chatId, "Расписание не найдено.");
+        }
+        if (!managerOwnsSchedule(telegramId, schedule)) {
+            return scheduleAccessDenied(chatId);
+        }
         List<Appointment> activeAppointments = appointmentRepository.findConfirmedByScheduleId(scheduleId);
 
         for (Appointment appointment : activeAppointments) {
@@ -459,7 +495,8 @@ public class ManagerScheduleService {
         int slotCount = (int) (Duration.between(range.start(), range.end()).toMinutes() / SLOT_DURATION_MINUTES);
 
         StringBuilder text = new StringBuilder("Подтвердите создание расписания:\n\n");
-        text.append("👤 ").append(specialist.getFirstname()).append(" ").append(specialist.getLastname()).append("\n");
+        text.append("👤 ").append(TelegramDisplayHtml.escape(specialist.getFirstname())).append(" ")
+                .append(TelegramDisplayHtml.escape(specialist.getLastname())).append("\n");
         text.append("🕐 ").append(range.start().format(TIME_FMT)).append("–").append(range.end().format(TIME_FMT)).append("\n");
         text.append("📊 Слотов в день: ").append(slotCount).append(" (по 30 мин)\n\n");
         text.append("📅 Дни:\n");
@@ -472,6 +509,7 @@ public class ManagerScheduleService {
         rows.add(List.of(btn("◀️ Изменить время", SCHED_BACK_TO_TIME)));
         rows.add(List.of(btn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)));
         SendMessage message = new SendMessage(chatId.toString(), text.toString());
+        message.setParseMode("HTML");
         message.setReplyMarkup(new InlineKeyboardMarkup(rows));
         return message;
     }

@@ -99,8 +99,8 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
             case "REGISTER" -> {
                 boolean managerWhitelisted = userRoleService.isManagerWhitelisted(username);
                 boolean specialistWhitelisted = userRoleService.isSpecialistWhitelisted(username);
-                log.info("REGISTER: telegramId={}, username={}, manager={}, specialist={}",
-                        telegramId, username, managerWhitelisted, specialistWhitelisted);
+                log.debug("REGISTER: telegramId={}, username=present, manager={}, specialist={}",
+                        telegramId, managerWhitelisted, specialistWhitelisted);
 
                 SendMessage msg;
                 if (managerWhitelisted) {

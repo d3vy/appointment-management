@@ -1,3 +1,11 @@
+# TLS must terminate in front of the app; Actuator uses HTTP Basic on /actuator/* (except /health).
+spring:
+  data:
+    redis:
+      password: ${REDIS_PASSWORD}
+  datasource:
+    password: ${DB_PASSWORD}
+
 logging:
   level:
     root: INFO
