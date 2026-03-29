@@ -12,6 +12,10 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+
+import java.util.List;
 
 @Component
 public class ClientRoleHandler implements TelegramRoleHandler {
@@ -59,8 +63,7 @@ public class ClientRoleHandler implements TelegramRoleHandler {
             case "/appointments" -> sendWithOptionalEdit(telegramId,
                     bookingService.buildClientAppointmentsMessage(telegramId, chatId), reply);
             case "/help" -> sendWithOptionalEdit(telegramId, helpHandler.prepareHelpForClient(chatId), reply);
-            default -> sendWithOptionalEdit(telegramId, new SendMessage(chatId.toString(),
-                    "Неизвестная команда. Используйте /help для списка команд."), reply);
+            default -> sendWithOptionalEdit(telegramId, clientUnknownCommand(chatId), reply);
         }
     }
 
@@ -98,6 +101,16 @@ public class ClientRoleHandler implements TelegramRoleHandler {
                 reply.sendOrEdit(menuHandler.prepareClientMenu(chatId, enabled), messageId);
             }
         }
+    }
+
+    private static SendMessage clientUnknownCommand(Long chatId) {
+        InlineKeyboardButton menu = new InlineKeyboardButton();
+        menu.setText("◀️ В меню");
+        menu.setCallbackData("CLIENT_MAIN_MENU");
+        SendMessage outgoing = new SendMessage(chatId.toString(),
+                "Неизвестная команда. Используйте /help для списка команд.");
+        outgoing.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(menu))));
+        return outgoing;
     }
 
     private void sendWithOptionalEdit(Long telegramId, SendMessage outgoing, TelegramReply reply) {

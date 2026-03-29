@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,6 +33,7 @@ public class ManagerService {
     private static final String LINK_SPEC_PREFIX = "M_LNK_SP_";
     private static final String LINK_SVC_PREFIX = "M_LNK_SV_";
     private static final String CALLBACK_MANAGER_MAIN_MENU = "MANAGER_MAIN_MENU";
+    private static final String CALLBACK_PENDING_BACK = "MANAGER_PENDING_BACK";
     private static final String CALLBACK_LINK_BACK_LIST = "M_LNK_BACK_LIST";
 
     private final ManagerRepository managerRepository;
@@ -64,13 +66,46 @@ public class ManagerService {
     public SendMessage startAddSpecialistToWhitelist(Long telegramId, Long chatId) {
         ManagerPendingAction pendingAction = new ManagerPendingAction(telegramId, ManagerAction.AWAITING_SPECIALIST_USERNAME);
         pendingActionRepository.save(pendingAction);
-        return new SendMessage(chatId.toString(), "Введите username специалиста (без @):");
+        return promptWithNav(chatId, "Введите username специалиста (без @):");
     }
 
     public SendMessage startAddService(Long telegramId, Long chatId) {
         ManagerPendingAction pendingAction = new ManagerPendingAction(telegramId, ManagerAction.AWAITING_SERVICE_NAME);
         pendingActionRepository.save(pendingAction);
-        return new SendMessage(chatId.toString(), "Введите название услуги:");
+        return promptWithNav(chatId, "Введите название услуги:");
+    }
+
+    @Transactional
+    public Optional<SendMessage> navigatePendingBack(Long telegramId, Long chatId) {
+        ManagerPendingAction pendingAction = pendingActionRepository.findById(telegramId).orElse(null);
+        if (pendingAction == null) {
+            return Optional.empty();
+        }
+        return switch (pendingAction.getAction()) {
+            case AWAITING_SPECIALIST_USERNAME, AWAITING_SERVICE_NAME -> {
+                clearPendingActionIfPresent(telegramId);
+                yield Optional.empty();
+            }
+            case AWAITING_SERVICE_PRICE -> {
+                pendingAction.setAction(ManagerAction.AWAITING_SERVICE_NAME);
+                pendingAction.setDraftServicePrice(null);
+                pendingActionRepository.save(pendingAction);
+                yield Optional.of(promptWithNav(chatId, "Введите название услуги:"));
+            }
+            case AWAITING_SERVICE_DURATION -> {
+                pendingAction.setAction(ManagerAction.AWAITING_SERVICE_PRICE);
+                pendingAction.setDraftServiceDurationMinutes(null);
+                pendingActionRepository.save(pendingAction);
+                yield Optional.of(promptWithNav(chatId,
+                        "Введите цену в рублях (целое число или десятичное, например 1500 или 1500.50):"));
+            }
+        };
+    }
+
+    public void clearPendingActionIfPresent(Long telegramId) {
+        if (pendingActionRepository.existsById(telegramId)) {
+            pendingActionRepository.deleteById(telegramId);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -86,7 +121,9 @@ public class ManagerService {
             String label = s.getFirstname() + " " + s.getLastname() + " (@" + s.getUsername() + ")";
             rows.add(List.of(inlineBtn(label, LINK_SPEC_PREFIX + s.getId())));
         }
-        rows.add(List.of(inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)));
+        rows.add(List.of(
+                inlineBtn("◀️ Назад", CALLBACK_MANAGER_MAIN_MENU),
+                inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)));
         SendMessage message = new SendMessage(chatId.toString(), "Выберите специалиста для привязки услуги:");
         message.setReplyMarkup(new InlineKeyboardMarkup(rows));
         return message;
@@ -160,6 +197,12 @@ public class ManagerService {
         return message;
     }
 
+    private static SendMessage promptWithNav(Long chatId, String text) {
+        return twoButtonRowMessage(chatId, text,
+                inlineBtn("◀️ Назад", CALLBACK_PENDING_BACK),
+                inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
+    }
+
     private static InlineKeyboardButton inlineBtn(String text, String callbackData) {
         InlineKeyboardButton button = new InlineKeyboardButton();
         button.setText(text);
@@ -185,32 +228,35 @@ public class ManagerService {
     private SendMessage handleSpecialistWhitelistInput(Long telegramId, Long chatId, String messageText) {
         String username = messageText.trim().replace("@", "");
         if (username.isBlank()) {
-            return new SendMessage(chatId.toString(), "❌ Username не может быть пустым. Попробуйте ещё раз:");
+            return promptWithNav(chatId, "❌ Username не может быть пустым. Попробуйте ещё раз:");
         }
         if (specialistWhitelistRepository.existsByUsernameIgnoreCase(username)) {
             pendingActionRepository.deleteById(telegramId);
-            return new SendMessage(chatId.toString(),
-                    String.format("⚠️ @%s уже в whitelist специалистов.", username));
+            return singleRowMessage(chatId,
+                    String.format("⚠️ @%s уже в whitelist специалистов.", username),
+                    inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
         }
         SpecialistWhitelist entry = new SpecialistWhitelist();
         entry.setUsername(username);
         specialistWhitelistRepository.save(entry);
         pendingActionRepository.deleteById(telegramId);
         log.info("Specialist username '{}' added to specialist whitelist by telegramId={}", username, telegramId);
-        return new SendMessage(chatId.toString(),
-                String.format("✅ @%s добавлен в whitelist специалистов.", username));
+        return singleRowMessage(chatId,
+                String.format("✅ @%s добавлен в whitelist специалистов.", username),
+                inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
     }
 
     private SendMessage handleServiceNameStep(Long telegramId, Long chatId, String messageText,
                                               ManagerPendingAction pendingAction) {
         String name = messageText.trim();
         if (name.isBlank()) {
-            return new SendMessage(chatId.toString(), "❌ Название не может быть пустым. Введите снова:");
+            return promptWithNav(chatId, "❌ Название не может быть пустым. Введите снова:");
         }
         pendingAction.setDraftServiceName(name);
         pendingAction.setAction(ManagerAction.AWAITING_SERVICE_PRICE);
         pendingActionRepository.save(pendingAction);
-        return new SendMessage(chatId.toString(), "Введите цену в рублях (целое число или десятичное, например 1500 или 1500.50):");
+        return promptWithNav(chatId,
+                "Введите цену в рублях (целое число или десятичное, например 1500 или 1500.50):");
     }
 
     private SendMessage handleServicePriceStep(Long telegramId, Long chatId, String messageText,
@@ -220,15 +266,16 @@ public class ManagerService {
         try {
             price = new BigDecimal(normalized);
         } catch (NumberFormatException e) {
-            return new SendMessage(chatId.toString(), "❌ Некорректная цена. Пример: 2500 или 1999.99");
+            return promptWithNav(chatId, "❌ Некорректная цена. Пример: 2500 или 1999.99");
         }
         if (price.signum() <= 0) {
-            return new SendMessage(chatId.toString(), "❌ Цена должна быть больше нуля.");
+            return promptWithNav(chatId, "❌ Цена должна быть больше нуля.");
         }
         pendingAction.setDraftServicePrice(normalized);
         pendingAction.setAction(ManagerAction.AWAITING_SERVICE_DURATION);
         pendingActionRepository.save(pendingAction);
-        return new SendMessage(chatId.toString(), "Введите длительность в минутах (целое число, кратно 30 — например 30, 60, 90):");
+        return promptWithNav(chatId,
+                "Введите длительность в минутах (целое число, кратно 30 — например 30, 60, 90):");
     }
 
     private SendMessage handleServiceDurationStep(Long telegramId, Long chatId, String messageText,
@@ -237,10 +284,10 @@ public class ManagerService {
         try {
             minutes = Integer.parseInt(messageText.trim());
         } catch (NumberFormatException e) {
-            return new SendMessage(chatId.toString(), "❌ Введите целое число минут.");
+            return promptWithNav(chatId, "❌ Введите целое число минут.");
         }
         if (minutes <= 0 || minutes % 30 != 0) {
-            return new SendMessage(chatId.toString(), "❌ Длительность должна быть положительной и кратна 30 минутам.");
+            return promptWithNav(chatId, "❌ Длительность должна быть положительной и кратна 30 минутам.");
         }
         String name = pendingAction.getDraftServiceName();
         BigDecimal price = new BigDecimal(pendingAction.getDraftServicePrice());
@@ -251,8 +298,9 @@ public class ManagerService {
         serviceRepository.save(entity);
         pendingActionRepository.deleteById(telegramId);
         log.info("Service created id={} name='{}' by telegramId={}", entity.getId(), name, telegramId);
-        return new SendMessage(chatId.toString(),
-                "✅ Услуга «" + name + "» добавлена. Привяжите её к специалисту через меню.");
+        return singleRowMessage(chatId,
+                "✅ Услуга «" + name + "» добавлена. Привяжите её к специалисту через меню.",
+                inlineBtn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU));
     }
 
     public boolean hasPendingAction(Long telegramId) {

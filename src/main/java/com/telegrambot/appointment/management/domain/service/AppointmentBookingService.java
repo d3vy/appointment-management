@@ -93,7 +93,7 @@ public class AppointmentBookingService {
             case SELECT_DAY               -> handleDaySelection(context, chatId, data);
             case SELECT_SLOT              -> handleSlotSelection(context, chatId, data);
             case CONFIRM                  -> handleConfirmation(context, chatId, data);
-            default -> new SendMessage(chatId.toString(), "Неизвестный шаг. Начните заново: /make_appointment");
+            default -> messageWithClientMenu(chatId, "Неизвестный шаг. Начните заново: /make_appointment");
         };
     }
 
@@ -179,7 +179,7 @@ public class AppointmentBookingService {
                 bookingContextRepository.save(context);
                 yield showAllSpecialists(chatId);
             }
-            default -> new SendMessage(chatId.toString(), "Выберите вариант из меню.");
+            default -> messageWithClientMenu(chatId, "Выберите вариант из меню.");
         };
     }
 
@@ -255,7 +255,7 @@ public class AppointmentBookingService {
         int startIndex = allSlots.indexOf(startSlot);
         if (!isConsecutiveFreeBlock(allSlots, startIndex, slotsNeeded)) {
             bookingContextRepository.deleteById(context.getTelegramId());
-            return new SendMessage(chatId.toString(),
+            return messageWithClientMenu(chatId,
                     "⚠️ Время уже занято. Попробуйте снова: /menu");
         }
 
@@ -278,7 +278,7 @@ public class AppointmentBookingService {
             bookingContextRepository.deleteById(context.getTelegramId());
             log.warn("Concurrent booking conflict for telegramId={}, slotId={}",
                     context.getTelegramId(), startSlot.getId());
-            return new SendMessage(chatId.toString(),
+            return messageWithClientMenu(chatId,
                     "⚠️ Это время только что заняли. Выберите другое: /make_appointment");
         }
 
@@ -303,12 +303,14 @@ public class AppointmentBookingService {
                 endTime.format(TIME_FMT),
                 service.getPrice().toPlainString()
         );
-        return new SendMessage(chatId.toString(), text);
+        return messageWithClientMenu(chatId, text);
     }
 
     private SendMessage showServices(Long chatId) {
         List<Service> services = serviceRepository.findAll();
-        if (services.isEmpty()) return new SendMessage(chatId.toString(), "Нет доступных услуг.");
+        if (services.isEmpty()) {
+            return messageWithClientMenu(chatId, "Нет доступных услуг.");
+        }
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         for (Service s : services) {
@@ -324,14 +326,16 @@ public class AppointmentBookingService {
 
     private SendMessage showAllSpecialists(Long chatId) {
         List<Specialist> specialists = specialistRepository.findAll();
-        if (specialists.isEmpty()) return new SendMessage(chatId.toString(), "Нет доступных специалистов.");
+        if (specialists.isEmpty()) {
+            return messageWithClientMenu(chatId, "Нет доступных специалистов.");
+        }
         return buildSpecialistList(chatId, specialists, "Выберите специалиста:");
     }
 
     private SendMessage showSpecialistsByService(Long chatId, Integer serviceId) {
         List<Specialist> specialists = specialistRepository.findAllByServiceId(serviceId);
         if (specialists.isEmpty()) {
-            return new SendMessage(chatId.toString(),
+            return messageWithClientMenu(chatId,
                     "По этой услуге нет доступных специалистов. Выберите другую: /make_appointment");
         }
         return buildSpecialistList(chatId, specialists, "Выберите специалиста:");
@@ -340,7 +344,9 @@ public class AppointmentBookingService {
     private SendMessage showServicesBySpecialist(Long chatId, Integer specialistId) {
         Specialist specialist = specialistRepository.findById(specialistId).orElseThrow();
         List<Service> services = new ArrayList<>(specialist.getServices());
-        if (services.isEmpty()) return new SendMessage(chatId.toString(), "У специалиста нет услуг.");
+        if (services.isEmpty()) {
+            return messageWithClientMenu(chatId, "У специалиста нет услуг.");
+        }
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         for (Service s : services) {
@@ -357,7 +363,7 @@ public class AppointmentBookingService {
     private SendMessage showAvailableDays(Long chatId, Integer specialistId) {
         List<Schedule> schedules = scheduleRepository.findAvailableBySpecialist(specialistId, LocalDate.now());
         if (schedules.isEmpty()) {
-            return new SendMessage(chatId.toString(),
+            return messageWithClientMenu(chatId,
                     "У этого специалиста нет свободных дней. Выберите другого: /make_appointment");
         }
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
@@ -377,8 +383,9 @@ public class AppointmentBookingService {
         List<ScheduleSlot> validStarts = findValidStartSlots(allSlots, slotsNeeded);
 
         if (validStarts.isEmpty()) {
-            return new SendMessage(chatId.toString(),
-                    "В этот день нет свободного времени для выбранной услуги. Выберите другой день.");
+            return buildMessage(chatId,
+                    "В этот день нет свободного времени для выбранной услуги. Выберите другой день.",
+                    bookingNavRows());
         }
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
@@ -533,8 +540,24 @@ public class AppointmentBookingService {
         return b;
     }
 
+
+    private List<List<InlineKeyboardButton>> clientMenuRow() {
+        return List.of(List.of(btn("◀️ В меню", "CLIENT_MAIN_MENU")));
+    }
+
+    private SendMessage messageWithClientMenu(Long chatId, String text) {
+        return buildMessage(chatId, text, clientMenuRow());
+    }
+
+    private List<List<InlineKeyboardButton>> bookingNavRows() {
+        return List.of(
+                List.of(btn("◀️ Назад", "BOOK_NAV_BACK")),
+                List.of(btn("❌ Отмена", "BOOK_CANCEL")),
+                List.of(btn("◀️ В меню", "CLIENT_MAIN_MENU")));
+    }
+
     private SendMessage unknownStep(Long chatId) {
-        return new SendMessage(chatId.toString(), "Неизвестное действие. Начните заново: /make_appointment");
+        return messageWithClientMenu(chatId, "Неизвестное действие. Начните заново: /make_appointment");
     }
 
     private List<ScheduleSlot> findValidStartSlots(List<ScheduleSlot> allSlots, int slotsNeeded) {

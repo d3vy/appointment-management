@@ -12,6 +12,10 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+
+import java.util.List;
 
 @Component
 public class ManagerRoleHandler implements TelegramRoleHandler {
@@ -72,8 +76,7 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
             }
             case "/menu" -> sendWithOptionalEdit(telegramId, menuHandler.prepareManagerMenu(chatId), reply);
             case "/help" -> sendWithOptionalEdit(telegramId, helpHandler.prepareHelpForManager(chatId), reply);
-            default -> sendWithOptionalEdit(telegramId, new SendMessage(chatId.toString(),
-                    "Неизвестная команда. Используйте /help для списка команд."), reply);
+            default -> sendWithOptionalEdit(telegramId, managerUnknownCommand(chatId), reply);
         }
     }
 
@@ -88,11 +91,19 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
         anchorService.remember(telegramId, messageId);
 
         if ("MANAGER_MAIN_MENU".equals(data)) {
+            managerService.clearPendingActionIfPresent(telegramId);
+            managerScheduleService.clearScheduleContextIfPresent(telegramId);
             reply.sendOrEdit(menuHandler.prepareManagerMenu(chatId), messageId);
             return;
         }
         if ("M_LNK_BACK_LIST".equals(data)) {
             reply.sendOrEdit(managerService.startLinkServiceFlow(chatId), messageId);
+            return;
+        }
+        if ("MANAGER_PENDING_BACK".equals(data)) {
+            managerService.navigatePendingBack(telegramId, chatId).ifPresentOrElse(
+                    msg -> reply.sendOrEdit(msg, messageId),
+                    () -> reply.sendOrEdit(menuHandler.prepareManagerMenu(chatId), messageId));
             return;
         }
 
@@ -140,6 +151,16 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
             case "MANAGER_SPECIALISTS" -> reply.sendOrEdit(managerService.buildSpecialistListMessage(chatId), messageId);
             case "MANAGER_SCHEDULE" -> reply.sendOrEdit(managerScheduleService.startScheduleFlow(telegramId, chatId), messageId);
         }
+    }
+
+    private static SendMessage managerUnknownCommand(Long chatId) {
+        InlineKeyboardButton menu = new InlineKeyboardButton();
+        menu.setText("◀️ В меню");
+        menu.setCallbackData("MANAGER_MAIN_MENU");
+        SendMessage outgoing = new SendMessage(chatId.toString(),
+                "Неизвестная команда. Используйте /help для списка команд.");
+        outgoing.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(menu))));
+        return outgoing;
     }
 
     private void sendWithOptionalEdit(Long telegramId, SendMessage outgoing, TelegramReply reply) {

@@ -37,6 +37,9 @@ public class ManagerScheduleService {
     private static final DateTimeFormatter DATE_FULL_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final int SLOT_DURATION_MINUTES = 30;
+    private static final String CALLBACK_MANAGER_MAIN_MENU = "MANAGER_MAIN_MENU";
+    private static final String SCHED_BACK_TO_DATES = "SCHED_BACK_TO_DATES";
+    private static final String SCHED_BACK_TO_TIME = "SCHED_BACK_TO_TIME";
 
     private final ManagerScheduleContextRepository scheduleContextRepository;
     private final SpecialistRepository specialistRepository;
@@ -74,23 +77,37 @@ public class ManagerScheduleService {
         return scheduleContextRepository.existsById(telegramId);
     }
 
+    public void clearScheduleContextIfPresent(Long telegramId) {
+        if (scheduleContextRepository.existsById(telegramId)) {
+            scheduleContextRepository.deleteById(telegramId);
+        }
+    }
+
+    private SendMessage messageWithMenu(Long chatId, String text) {
+        SendMessage message = new SendMessage(chatId.toString(), text);
+        message.setReplyMarkup(new InlineKeyboardMarkup(List.of(
+                List.of(btn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)))));
+        return message;
+    }
+
     @Transactional
     public SendMessage handleCallback(Long telegramId, Long chatId, String data) {
         ManagerScheduleContext context = scheduleContextRepository.findById(telegramId).orElse(null);
         if (context == null) {
-            return new SendMessage(chatId.toString(), "Сессия истекла. Начните заново через /menu");
+            return messageWithMenu(chatId, "Сессия истекла. Начните заново через /menu");
         }
 
         if ("SCHED_CANCEL".equals(data)) {
             scheduleContextRepository.deleteById(telegramId);
-            return new SendMessage(chatId.toString(), "Отменено.");
+            return messageWithMenu(chatId, "Отменено.");
         }
 
         return switch (context.getStep()) {
             case SELECT_SPECIALIST -> handleSpecialistSelection(context, chatId, data);
-            case SELECT_DATES      -> handleDateToggle(context, chatId, data);
-            case CONFIRM           -> handleConfirm(context, chatId, telegramId, data);
-            default -> new SendMessage(chatId.toString(), "Неизвестный шаг.");
+            case SELECT_DATES -> handleDateToggle(context, chatId, data);
+            case ENTER_WORKDAY_TIME -> handleEnterWorkdayTimeStep(context, chatId, data);
+            case CONFIRM -> handleConfirmStep(context, chatId, telegramId, data);
+            default -> messageWithMenu(chatId, "Неизвестный шаг.");
         };
     }
 
@@ -115,12 +132,12 @@ public class ManagerScheduleService {
     private SendMessage handleDateToggle(ManagerScheduleContext context, Long chatId, String data) {
         if ("SCHED_DATES_DONE".equals(data)) {
             if (context.getSelectedDates().isEmpty()) {
-                return new SendMessage(chatId.toString(), "Выберите хотя бы один день.");
+                return buildDateSelectionMessage(chatId, context,
+                        "⚠️ Выберите хотя бы один день.\n\n");
             }
             context.setStep(ManagerScheduleStep.ENTER_WORKDAY_TIME);
             scheduleContextRepository.save(context);
-            return new SendMessage(chatId.toString(),
-                    "Введите рабочее время в формате ЧЧ:ММ-ЧЧ:ММ\nПример: 09:00-18:00");
+            return workdayTimePrompt(chatId);
         }
 
         if (!data.startsWith("SCHED_DATE_")) return unknownAction(chatId);
@@ -141,8 +158,9 @@ public class ManagerScheduleService {
     private SendMessage handleWorkdayTimeInput(ManagerScheduleContext context, Long chatId, String text) {
         WorkdayRange range = parseWorkdayRange(text.trim());
         if (range == null) {
-            return new SendMessage(chatId.toString(),
-                    "❌ Неверный формат. Пример: 09:00-18:00");
+            return workdayTimePrompt(chatId,
+                    "❌ Неверный формат. Пример: 09:00-18:00\n\n"
+                            + "Введите рабочее время в формате ЧЧ:ММ-ЧЧ:ММ\nПример: 09:00-18:00");
         }
         context.setWorkdayInput(text.trim());
         context.setStep(ManagerScheduleStep.CONFIRM);
@@ -150,14 +168,38 @@ public class ManagerScheduleService {
         return buildConfirmationMessage(chatId, context, range);
     }
 
-    @Transactional
-    public SendMessage handleConfirm(ManagerScheduleContext context, Long chatId, Long telegramId, String data) {
-        if (!"SCHED_CONFIRM".equals(data)) return unknownAction(chatId);
+    private SendMessage handleEnterWorkdayTimeStep(ManagerScheduleContext context, Long chatId, String data) {
+        if (SCHED_BACK_TO_DATES.equals(data)) {
+            context.setStep(ManagerScheduleStep.SELECT_DATES);
+            context.setWorkdayInput(null);
+            scheduleContextRepository.save(context);
+            return buildDateSelectionMessage(chatId, context);
+        }
+        return unknownAction(chatId);
+    }
 
+    private SendMessage handleConfirmStep(ManagerScheduleContext context, Long chatId, Long telegramId, String data) {
+        if (SCHED_BACK_TO_TIME.equals(data)) {
+            context.setStep(ManagerScheduleStep.ENTER_WORKDAY_TIME);
+            scheduleContextRepository.save(context);
+            String current = context.getWorkdayInput();
+            String hintPrefix = (current != null && !current.isBlank())
+                    ? "Текущее время: " + current + "\n\n"
+                    : "";
+            return workdayTimePrompt(chatId,
+                    hintPrefix + "Введите рабочее время в формате ЧЧ:ММ-ЧЧ:ММ\nПример: 09:00-18:00");
+        }
+        if (!"SCHED_CONFIRM".equals(data)) {
+            return unknownAction(chatId);
+        }
+        return executeScheduleCreation(context, chatId, telegramId);
+    }
+
+    private SendMessage executeScheduleCreation(ManagerScheduleContext context, Long chatId, Long telegramId) {
         WorkdayRange range = parseWorkdayRange(context.getWorkdayInput());
         if (range == null) {
             scheduleContextRepository.deleteById(telegramId);
-            return new SendMessage(chatId.toString(), "Ошибка данных. Начните заново.");
+            return messageWithMenu(chatId, "Ошибка данных. Начните заново.");
         }
 
         Manager manager = managerRepository.findByTelegramId(telegramId)
@@ -191,7 +233,7 @@ public class ManagerScheduleService {
         if (skippedCount > 0) {
             result += String.format("\n⚠️ Пропущено (уже существует): %d", skippedCount);
         }
-        return new SendMessage(chatId.toString(), result);
+        return messageWithMenu(chatId, result);
     }
 
     private void generateSlots(Schedule schedule, WorkdayRange range) {
@@ -356,7 +398,7 @@ public class ManagerScheduleService {
     private SendMessage buildSpecialistListMessage(Long chatId) {
         List<Specialist> specialists = specialistRepository.findAll();
         if (specialists.isEmpty()) {
-            return new SendMessage(chatId.toString(), "Специалистов нет.");
+            return messageWithMenu(chatId, "Специалистов нет.");
         }
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         for (Specialist sp : specialists) {
@@ -372,6 +414,10 @@ public class ManagerScheduleService {
     }
 
     private SendMessage buildDateSelectionMessage(Long chatId, ManagerScheduleContext context) {
+        return buildDateSelectionMessage(chatId, context, "");
+    }
+
+    private SendMessage buildDateSelectionMessage(Long chatId, ManagerScheduleContext context, String textPrefix) {
         List<LocalDate> selected = context.getSelectedDates();
         LocalDate today = LocalDate.now();
 
@@ -388,7 +434,21 @@ public class ManagerScheduleService {
         }
         rows.add(List.of(btn("❌ Отмена", "SCHED_CANCEL")));
 
-        String text = "Выберите дни (можно несколько):";
+        String text = textPrefix + "Выберите дни (можно несколько):";
+        SendMessage message = new SendMessage(chatId.toString(), text);
+        message.setReplyMarkup(new InlineKeyboardMarkup(rows));
+        return message;
+    }
+
+    private SendMessage workdayTimePrompt(Long chatId) {
+        return workdayTimePrompt(chatId,
+                "Введите рабочее время в формате ЧЧ:ММ-ЧЧ:ММ\nПример: 09:00-18:00");
+    }
+
+    private SendMessage workdayTimePrompt(Long chatId, String text) {
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(btn("◀️ К дням", SCHED_BACK_TO_DATES)));
+        rows.add(List.of(btn("❌ Отмена", "SCHED_CANCEL"), btn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)));
         SendMessage message = new SendMessage(chatId.toString(), text);
         message.setReplyMarkup(new InlineKeyboardMarkup(rows));
         return message;
@@ -407,9 +467,10 @@ public class ManagerScheduleService {
                 .sorted()
                 .forEach(d -> text.append("  • ").append(d.format(DATE_FULL_FMT)).append("\n"));
 
-        List<List<InlineKeyboardButton>> rows = List.of(
-                List.of(btn("✅ Создать", "SCHED_CONFIRM"), btn("❌ Отмена", "SCHED_CANCEL"))
-        );
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(btn("✅ Создать", "SCHED_CONFIRM"), btn("❌ Отмена", "SCHED_CANCEL")));
+        rows.add(List.of(btn("◀️ Изменить время", SCHED_BACK_TO_TIME)));
+        rows.add(List.of(btn("◀️ В меню", CALLBACK_MANAGER_MAIN_MENU)));
         SendMessage message = new SendMessage(chatId.toString(), text.toString());
         message.setReplyMarkup(new InlineKeyboardMarkup(rows));
         return message;
@@ -437,7 +498,7 @@ public class ManagerScheduleService {
     }
 
     private SendMessage unknownAction(Long chatId) {
-        return new SendMessage(chatId.toString(), "Неизвестное действие.");
+        return messageWithMenu(chatId, "Неизвестное действие.");
     }
 
     private record WorkdayRange(LocalTime start, LocalTime end) {}

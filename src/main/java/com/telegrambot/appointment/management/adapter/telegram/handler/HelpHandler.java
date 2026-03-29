@@ -2,6 +2,10 @@ package com.telegrambot.appointment.management.adapter.telegram.handler;
 
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+
+import java.util.List;
 
 @Component
 public class HelpHandler {
@@ -16,7 +20,7 @@ public class HelpHandler {
                 Для записи к мастеру необходимо зарегистрироваться.
                 Нажмите /start чтобы начать.
                 """;
-        return new SendMessage(chatId.toString(), text);
+        return withInlineButton(chatId, text, "Начать регистрацию", "REGISTER");
     }
 
     public SendMessage prepareHelpForClient(Long chatId) {
@@ -28,7 +32,7 @@ public class HelpHandler {
                 /appointments — мои записи
                 /help — список команд
                 """;
-        return new SendMessage(chatId.toString(), text);
+        return withInlineButton(chatId, text, "◀️ В меню", "CLIENT_MAIN_MENU");
     }
 
     public SendMessage prepareHelpForManager(Long chatId) {
@@ -38,7 +42,7 @@ public class HelpHandler {
                 /menu — специалисты, расписание, услуги, привязка услуг
                 /help — список команд
                 """;
-        return new SendMessage(chatId.toString(), text);
+        return withInlineButton(chatId, text, "◀️ В меню", "MANAGER_MAIN_MENU");
     }
 
     public SendMessage prepareHelpForSpecialist(Long chatId) {
@@ -48,6 +52,15 @@ public class HelpHandler {
                 /menu — расписание, записи и услуги
                 /help — список команд
                 """;
-        return new SendMessage(chatId.toString(), text);
+        return withInlineButton(chatId, text, "◀️ В меню", "SPECIALIST_MAIN_MENU");
+    }
+
+    private static SendMessage withInlineButton(Long chatId, String text, String buttonLabel, String callbackData) {
+        InlineKeyboardButton button = new InlineKeyboardButton();
+        button.setText(buttonLabel);
+        button.setCallbackData(callbackData);
+        SendMessage message = new SendMessage(chatId.toString(), text);
+        message.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(button))));
+        return message;
     }
 }

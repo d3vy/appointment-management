@@ -11,6 +11,10 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+
+import java.util.List;
 
 @Component
 public class SpecialistRoleHandler implements TelegramRoleHandler {
@@ -51,8 +55,7 @@ public class SpecialistRoleHandler implements TelegramRoleHandler {
             }
             case "/menu" -> sendWithOptionalEdit(telegramId, menuHandler.prepareSpecialistMenu(chatId), reply);
             case "/help" -> sendWithOptionalEdit(telegramId, helpHandler.prepareHelpForSpecialist(chatId), reply);
-            default -> sendWithOptionalEdit(telegramId, new SendMessage(chatId.toString(),
-                    "Неизвестная команда. Используйте /help для списка команд."), reply);
+            default -> sendWithOptionalEdit(telegramId, specialistUnknownCommand(chatId), reply);
         }
     }
 
@@ -67,8 +70,7 @@ public class SpecialistRoleHandler implements TelegramRoleHandler {
         anchorService.remember(telegramId, messageId);
 
         switch (data) {
-            case "ADD_SPECIALIST_TO_WHITELIST" -> reply.sendOrEdit(new SendMessage(chatId.toString(),
-                    "Добавлять специалистов в whitelist может только менеджер. Попросите менеджера добавить вас через меню «Добавить специалиста»."), messageId);
+            case "ADD_SPECIALIST_TO_WHITELIST" -> reply.sendOrEdit(specialistWhitelistNotice(chatId), messageId);
             case "SPECIALIST_MAIN_MENU" ->
                     reply.sendOrEdit(menuHandler.prepareSpecialistMenu(chatId), messageId);
             case "SPECIALIST_SCHEDULE" ->
@@ -78,6 +80,26 @@ public class SpecialistRoleHandler implements TelegramRoleHandler {
             case "SPECIALIST_SERVICES" ->
                     reply.sendOrEdit(specialistService.buildMyServicesMessage(telegramId, chatId), messageId);
         }
+    }
+
+    private static SendMessage specialistUnknownCommand(Long chatId) {
+        InlineKeyboardButton menu = new InlineKeyboardButton();
+        menu.setText("◀️ В меню");
+        menu.setCallbackData("SPECIALIST_MAIN_MENU");
+        SendMessage outgoing = new SendMessage(chatId.toString(),
+                "Неизвестная команда. Используйте /help для списка команд.");
+        outgoing.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(menu))));
+        return outgoing;
+    }
+
+    private static SendMessage specialistWhitelistNotice(Long chatId) {
+        InlineKeyboardButton menu = new InlineKeyboardButton();
+        menu.setText("◀️ В меню");
+        menu.setCallbackData("SPECIALIST_MAIN_MENU");
+        SendMessage outgoing = new SendMessage(chatId.toString(),
+                "Добавлять специалистов в whitelist может только менеджер. Попросите менеджера добавить вас через меню «Добавить специалиста».");
+        outgoing.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(menu))));
+        return outgoing;
     }
 
     private void sendWithOptionalEdit(Long telegramId, SendMessage outgoing, TelegramReply reply) {

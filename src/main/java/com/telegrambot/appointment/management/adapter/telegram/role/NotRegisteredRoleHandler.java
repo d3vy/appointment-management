@@ -13,6 +13,10 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+
+import java.util.List;
 
 @Component
 public class NotRegisteredRoleHandler implements TelegramRoleHandler {
@@ -74,8 +78,7 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
                         sendWizardReply(message, telegramId, msg, reply);
                     }
                 } else {
-                    sendWizardReply(message, telegramId, new SendMessage(chatId.toString(),
-                            "Сначала зарегистрируйтесь. Нажмите /start"), reply);
+                    sendWizardReply(message, telegramId, notRegisteredNeedStart(chatId), reply);
                 }
             }
         }
@@ -117,6 +120,16 @@ public class NotRegisteredRoleHandler implements TelegramRoleHandler {
                 }
             }
         }
+    }
+
+    private static SendMessage notRegisteredNeedStart(Long chatId) {
+        InlineKeyboardButton register = new InlineKeyboardButton();
+        register.setText("Начать регистрацию");
+        register.setCallbackData("REGISTER");
+        SendMessage outgoing = new SendMessage(chatId.toString(),
+                "Сначала зарегистрируйтесь. Нажмите /start или кнопку ниже.");
+        outgoing.setReplyMarkup(new InlineKeyboardMarkup(List.of(List.of(register))));
+        return outgoing;
     }
 
     private void sendWithOptionalEdit(Long telegramId, SendMessage outgoing, TelegramReply reply) {
