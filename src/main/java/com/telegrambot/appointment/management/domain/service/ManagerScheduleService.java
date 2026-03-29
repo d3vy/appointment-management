@@ -12,8 +12,8 @@ import com.telegrambot.appointment.management.domain.port.TelegramTextMessageSen
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.AppointmentRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleSlotRepository;
-import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.context.ManagerScheduleContextRepository;
+import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
 import com.telegrambot.appointment.management.infrastructure.telegram.TelegramCallbackIntParser;
 import com.telegrambot.appointment.management.infrastructure.telegram.TelegramDisplayHtml;

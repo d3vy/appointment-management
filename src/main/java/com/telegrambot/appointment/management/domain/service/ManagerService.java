@@ -10,8 +10,8 @@ import com.telegrambot.appointment.management.infrastructure.persistence.reposit
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.context.ManagerPendingActionRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.manager.ManagerRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistRepository;
-import com.telegrambot.appointment.management.infrastructure.telegram.TelegramDisplayHtml;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.specialist.SpecialistWhitelistRepository;
+import com.telegrambot.appointment.management.infrastructure.telegram.TelegramDisplayHtml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;

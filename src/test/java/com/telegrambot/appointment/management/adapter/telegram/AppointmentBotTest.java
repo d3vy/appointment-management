@@ -1,6 +1,5 @@
 package com.telegrambot.appointment.management.adapter.telegram;
 
-import com.telegrambot.appointment.management.adapter.telegram.TelegramReply;
 import com.telegrambot.appointment.management.adapter.telegram.router.UpdateRouter;
 import com.telegrambot.appointment.management.infrastructure.config.BotConfig;
 import com.telegrambot.appointment.management.infrastructure.service.TelegramMessageAnchorService;
@@ -13,9 +12,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AppointmentBotTest {

@@ -1,6 +1,9 @@
 package com.telegrambot.appointment.management.domain.model.user.manager;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(schema = "manager", name = "manager_whitelist")

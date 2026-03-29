@@ -97,4 +97,8 @@ public class AppointmentBot extends TelegramLongPollingBot {
     public void sendMessage(SendMessage message) {
         executeTelegramMethod(message);
     }
+
+    public void executeSendMessageOrThrow(SendMessage message) throws TelegramApiException {
+        execute(message);
+    }
 }

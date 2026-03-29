@@ -1,6 +1,7 @@
 package com.telegrambot.appointment.management.domain.model.appointment;
 
 import jakarta.persistence.*;
+
 import java.time.LocalTime;
 
 @Entity
