@@ -11,7 +11,8 @@ WHERE NOT EXISTS (
 
 INSERT INTO manager.manager_whitelist (username)
 SELECT seed.username
-FROM (VALUES ('demo_manager')) AS seed(username)
+FROM (VALUES ('demo_manager'),
+             ('theiliachuvikin')) AS seed(username)
 WHERE NOT EXISTS (
     SELECT 1
     FROM manager.manager_whitelist mw
