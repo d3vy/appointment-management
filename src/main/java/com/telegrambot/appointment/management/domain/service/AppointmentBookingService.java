@@ -44,7 +44,7 @@ public class AppointmentBookingService {
     private final ScheduleSlotRepository slotRepository;
     private final AppointmentRepository appointmentRepository;
     private final ClientRepository clientRepository;
-    private final SpecialistNotificationService specialistNotificationService;
+    private final TelegramNotificationOutboxService telegramNotificationOutboxService;
 
     public AppointmentBookingService(BookingContextRepository bookingContextRepository,
                                      ServiceRepository serviceRepository,
@@ -53,7 +53,7 @@ public class AppointmentBookingService {
                                      ScheduleSlotRepository slotRepository,
                                      AppointmentRepository appointmentRepository,
                                      ClientRepository clientRepository,
-                                     SpecialistNotificationService specialistNotificationService) {
+                                     TelegramNotificationOutboxService telegramNotificationOutboxService) {
         this.bookingContextRepository = bookingContextRepository;
         this.serviceRepository = serviceRepository;
         this.specialistRepository = specialistRepository;
@@ -61,7 +61,7 @@ public class AppointmentBookingService {
         this.slotRepository = slotRepository;
         this.appointmentRepository = appointmentRepository;
         this.clientRepository = clientRepository;
-        this.specialistNotificationService = specialistNotificationService;
+        this.telegramNotificationOutboxService = telegramNotificationOutboxService;
     }
 
     public SendMessage startBooking(Long telegramId, Long chatId) {
@@ -169,7 +169,7 @@ public class AppointmentBookingService {
         releaseSlots(appointment);
         appointment.setStatus(AppointmentStatus.CANCELLED);
         appointmentRepository.save(appointment);
-        specialistNotificationService.notifyAboutClientCancellation(appointment);
+        telegramNotificationOutboxService.enqueueSpecialistClientCancellation(appointment.getId());
 
         return buildMessage(chatId, "✅ Запись отменена.", menuRow);
     }
@@ -325,7 +325,7 @@ public class AppointmentBookingService {
         bookingContextRepository.deleteById(context.getTelegramId());
         log.info("Appointment created: clientId={}, specialistId={}, startSlotId={}, slotsCount={}",
                 client.getId(), specialist.getId(), startSlot.getId(), slotsNeeded);
-        specialistNotificationService.notifyAboutNewAppointment(appointment);
+        telegramNotificationOutboxService.enqueueSpecialistNewAppointment(appointment.getId());
 
         LocalTime endTime = startSlot.getStartTime().plusMinutes((long) slotsNeeded * 30);
         String text = String.format("""

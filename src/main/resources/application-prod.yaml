@@ -22,3 +22,6 @@ management:
   endpoint:
     health:
       show-details: never
+  metrics:
+    enable:
+      logback: false

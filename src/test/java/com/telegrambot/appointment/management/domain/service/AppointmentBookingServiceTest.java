@@ -35,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 class AppointmentBookingServiceTest {
@@ -54,7 +55,7 @@ class AppointmentBookingServiceTest {
     @Mock
     private ClientRepository clientRepository;
     @Mock
-    private SpecialistNotificationService specialistNotificationService;
+    private TelegramNotificationOutboxService telegramNotificationOutboxService;
 
     @Test
     void selectDayToday_showsOnlyFutureSlots() {
@@ -160,10 +161,17 @@ class AppointmentBookingServiceTest {
         when(specialistRepository.findById(10)).thenReturn(Optional.of(specialist));
         when(serviceRepository.findById(20)).thenReturn(Optional.of(service));
         when(slotRepository.findAllByScheduleIdOrderedForUpdate(300)).thenReturn(List.of(slot));
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(invocation -> {
+            Appointment saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                saved.setId(501);
+            }
+            return saved;
+        });
 
         bookingService.handleConfirmation(context, 504L, "BOOK_CONFIRM");
 
-        verify(specialistNotificationService).notifyAboutNewAppointment(org.mockito.ArgumentMatchers.any(Appointment.class));
+        verify(telegramNotificationOutboxService).enqueueSpecialistNewAppointment(501);
     }
 
     @Test
@@ -203,7 +211,7 @@ class AppointmentBookingServiceTest {
 
         bookingService.cancelAppointment(105L, 700, 505L);
 
-        verify(specialistNotificationService).notifyAboutClientCancellation(appointment);
+        verify(telegramNotificationOutboxService).enqueueSpecialistClientCancellation(700);
     }
 
     private AppointmentBookingService createService() {
@@ -215,7 +223,7 @@ class AppointmentBookingServiceTest {
                 slotRepository,
                 appointmentRepository,
                 clientRepository,
-                specialistNotificationService
+                telegramNotificationOutboxService
         );
     }
 

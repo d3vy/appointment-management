@@ -2,6 +2,10 @@ bot:
   name: ${BOT_NAME}
   token: ${BOT_TOKEN}
 
+telegram:
+  outbox:
+    poll-interval-ms: 2000
+
 spring:
   application:
     name: appointment-management

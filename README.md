@@ -92,8 +92,11 @@ docker compose exec -T postgres psql -U postgres -d appointment_bot < src/main/r
 ### Профиль `prod`
 
 - `SPRING_PROFILES_ACTIVE=prod` (в Docker-образе задаётся по умолчанию; на VPS не отключайте без необходимости — иначе Actuator останется без HTTP Basic, см. [`ProdActuatorSecurityConfiguration.java`](src/main/java/com/telegrambot/appointment/management/infrastructure/config/ProdActuatorSecurityConfiguration.java).)
-- Обязательно задайте сильный `ACTUATOR_PASSWORD` (и при желании `ACTUATOR_USERNAME`).
+- Обязательно задайте сильный `ACTUATOR_PASSWORD` (и при желании нестандартный `ACTUATOR_USERNAME`). Слабый пароль или дефолтный логин дают доступ к JVM/приложенческим метрикам любому, кто достучится до `/actuator/*`.
+- **Сеть:** по возможности не выставляйте `/actuator/prometheus` в открытый интернет; ограничьте reverse-proxy по IP Prometheus/VPN или вынесите management listener на `127.0.0.1` и скрейпьте через sidecar (см. комментарий в [`application-prod.yaml`](src/main/resources/application-prod.yaml)).
+- `docker compose` в репозитории требует задать в `.env` как минимум `DB_PASSWORD`, `REDIS_PASSWORD`, `ACTUATOR_PASSWORD` (без небезопасных значений по умолчанию).
 - JVM и cron-напоминания используют часовой пояс процесса: при необходимости задайте `-Duser.timezone=Europe/Moscow` (или другой) в командной строке `java`.
+- Уведомления специалисту/клиенту после изменения записи ставятся в transactional outbox (`public.telegram_notification_outbox`); доставка в Telegram выполняется фоновым воркером с повторами и ShedLock.
 
 ### Whitelist менеджера и специалиста
 

@@ -8,7 +8,6 @@ import com.telegrambot.appointment.management.domain.model.user.manager.Manager;
 import com.telegrambot.appointment.management.domain.model.user.manager.ManagerScheduleContext;
 import com.telegrambot.appointment.management.domain.model.user.manager.ManagerScheduleStep;
 import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
-import com.telegrambot.appointment.management.domain.port.TelegramTextMessageSender;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.AppointmentRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleSlotRepository;
@@ -49,8 +48,7 @@ public class ManagerScheduleService {
     private final ScheduleSlotRepository slotRepository;
     private final AppointmentRepository appointmentRepository;
     private final ManagerRepository managerRepository;
-    private final TelegramTextMessageSender messageSender;
-    private final SpecialistNotificationService specialistNotificationService;
+    private final TelegramNotificationOutboxService telegramNotificationOutboxService;
 
     public ManagerScheduleService(ManagerScheduleContextRepository scheduleContextRepository,
                                   SpecialistRepository specialistRepository,
@@ -58,16 +56,14 @@ public class ManagerScheduleService {
                                   ScheduleSlotRepository slotRepository,
                                   AppointmentRepository appointmentRepository,
                                   ManagerRepository managerRepository,
-                                  TelegramTextMessageSender messageSender,
-                                  SpecialistNotificationService specialistNotificationService) {
+                                  TelegramNotificationOutboxService telegramNotificationOutboxService) {
         this.scheduleContextRepository = scheduleContextRepository;
         this.specialistRepository = specialistRepository;
         this.scheduleRepository = scheduleRepository;
         this.slotRepository = slotRepository;
         this.appointmentRepository = appointmentRepository;
         this.managerRepository = managerRepository;
-        this.messageSender = messageSender;
-        this.specialistNotificationService = specialistNotificationService;
+        this.telegramNotificationOutboxService = telegramNotificationOutboxService;
     }
 
     public SendMessage startScheduleFlow(Long telegramId, Long chatId) {
@@ -389,11 +385,13 @@ public class ManagerScheduleService {
 
         for (Appointment appointment : activeAppointments) {
             appointment.setStatus(AppointmentStatus.CANCELLED);
-            notifyClientAboutCancellation(appointment);
-            specialistNotificationService.notifyAboutManagerCancellation(appointment);
         }
 
         appointmentRepository.saveAll(activeAppointments);
+        for (Appointment appointment : activeAppointments) {
+            telegramNotificationOutboxService.enqueueClientManagerCancellation(appointment.getId());
+            telegramNotificationOutboxService.enqueueSpecialistManagerCancellation(appointment.getId());
+        }
         Integer specialistId = schedule.getSpecialist().getId();
         scheduleRepository.deleteById(scheduleId);
 
@@ -408,31 +406,6 @@ public class ManagerScheduleService {
         context.setStep(ManagerScheduleStep.SELECT_DATES);
         scheduleContextRepository.save(context);
         return buildDateSelectionMessage(chatId, context);
-    }
-
-    private void notifyClientAboutCancellation(Appointment appointment) {
-        String text = String.format("""
-                ❌ Ваша запись отменена менеджером.
-                
-                👤 Специалист: %s %s
-                💈 Услуга: %s
-                📅 Дата: %s
-                🕐 Время: %s
-                
-                Приносим извинения за неудобства.
-                """,
-                appointment.getSpecialist().getFirstname(),
-                appointment.getSpecialist().getLastname(),
-                appointment.getService().getName(),
-                appointment.getSlot().getSchedule().getDate().format(DATE_FULL_FMT),
-                appointment.getSlot().getStartTime().format(TIME_FMT)
-        );
-        try {
-            messageSender.sendText(appointment.getClient().getTelegramId(), text);
-        } catch (Exception e) {
-            log.error("Failed to notify client telegramId={} about cancellation",
-                    appointment.getClient().getTelegramId(), e);
-        }
     }
 
     private SendMessage buildSpecialistListMessage(Long chatId) {

@@ -2,8 +2,6 @@ package com.telegrambot.appointment.management.domain.service;
 
 import com.telegrambot.appointment.management.domain.model.appointment.Appointment;
 import com.telegrambot.appointment.management.domain.port.TelegramTextMessageSender;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalTime;
@@ -12,7 +10,6 @@ import java.time.format.DateTimeFormatter;
 @Service
 public class SpecialistNotificationService {
 
-    private static final Logger log = LoggerFactory.getLogger(SpecialistNotificationService.class);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final int SLOT_DURATION_MINUTES = 30;
@@ -80,12 +77,7 @@ public class SpecialistNotificationService {
                 || appointment.getSpecialist().getTelegramId() == null) {
             return;
         }
-        try {
-            messageSender.sendText(appointment.getSpecialist().getTelegramId(), text);
-        } catch (Exception e) {
-            log.error("Failed to notify specialist telegramId={} for appointmentId={}",
-                    appointment.getSpecialist().getTelegramId(), appointment.getId(), e);
-        }
+        messageSender.sendText(appointment.getSpecialist().getTelegramId(), text);
     }
 
     private String formatClientName(Appointment appointment) {

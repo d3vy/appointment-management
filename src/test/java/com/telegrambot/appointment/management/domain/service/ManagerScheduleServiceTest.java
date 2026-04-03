@@ -8,7 +8,6 @@ import com.telegrambot.appointment.management.domain.model.appointment.Service;
 import com.telegrambot.appointment.management.domain.model.user.client.Client;
 import com.telegrambot.appointment.management.domain.model.user.manager.Manager;
 import com.telegrambot.appointment.management.domain.model.user.specialist.Specialist;
-import com.telegrambot.appointment.management.domain.port.TelegramTextMessageSender;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.AppointmentRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleRepository;
 import com.telegrambot.appointment.management.infrastructure.persistence.repository.appointment.ScheduleSlotRepository;
@@ -30,7 +29,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,9 +48,7 @@ class ManagerScheduleServiceTest {
     @Mock
     private ManagerRepository managerRepository;
     @Mock
-    private TelegramTextMessageSender messageSender;
-    @Mock
-    private SpecialistNotificationService specialistNotificationService;
+    private TelegramNotificationOutboxService telegramNotificationOutboxService;
 
     @InjectMocks
     private ManagerScheduleService managerScheduleService;
@@ -94,9 +90,10 @@ class ManagerScheduleServiceTest {
 
         assertEquals(String.valueOf(chatId), result.getChatId());
         verify(appointmentRepository).saveAll(activeAppointments);
-        verify(messageSender, times(2)).sendText(any(Long.class), any(String.class));
-        verify(specialistNotificationService).notifyAboutManagerCancellation(firstAppointment);
-        verify(specialistNotificationService).notifyAboutManagerCancellation(secondAppointment);
+        verify(telegramNotificationOutboxService).enqueueClientManagerCancellation(1001);
+        verify(telegramNotificationOutboxService).enqueueClientManagerCancellation(1002);
+        verify(telegramNotificationOutboxService).enqueueSpecialistManagerCancellation(1001);
+        verify(telegramNotificationOutboxService).enqueueSpecialistManagerCancellation(1002);
         assertEquals(AppointmentStatus.CANCELLED, firstAppointment.getStatus());
         assertEquals(AppointmentStatus.CANCELLED, secondAppointment.getStatus());
     }
