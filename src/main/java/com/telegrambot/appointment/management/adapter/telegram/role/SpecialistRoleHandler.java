@@ -53,7 +53,10 @@ public class SpecialistRoleHandler implements TelegramRoleHandler {
                 anchorService.forget(telegramId);
                 reply.send(startHandler.prepareStartMessage(message));
             }
-            case "/menu" -> sendWithOptionalEdit(telegramId, menuHandler.prepareSpecialistMenu(chatId), reply);
+            case "/menu" -> {
+                anchorService.forget(telegramId);
+                reply.send(menuHandler.prepareSpecialistMenu(chatId));
+            }
             case "/help" -> sendWithOptionalEdit(telegramId, helpHandler.prepareHelpForSpecialist(chatId), reply);
             default -> sendWithOptionalEdit(telegramId, specialistUnknownCommand(chatId), reply);
         }

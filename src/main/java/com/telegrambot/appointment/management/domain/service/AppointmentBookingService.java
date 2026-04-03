@@ -44,6 +44,7 @@ public class AppointmentBookingService {
     private final ScheduleSlotRepository slotRepository;
     private final AppointmentRepository appointmentRepository;
     private final ClientRepository clientRepository;
+    private final SpecialistNotificationService specialistNotificationService;
 
     public AppointmentBookingService(BookingContextRepository bookingContextRepository,
                                      ServiceRepository serviceRepository,
@@ -51,7 +52,8 @@ public class AppointmentBookingService {
                                      ScheduleRepository scheduleRepository,
                                      ScheduleSlotRepository slotRepository,
                                      AppointmentRepository appointmentRepository,
-                                     ClientRepository clientRepository) {
+                                     ClientRepository clientRepository,
+                                     SpecialistNotificationService specialistNotificationService) {
         this.bookingContextRepository = bookingContextRepository;
         this.serviceRepository = serviceRepository;
         this.specialistRepository = specialistRepository;
@@ -59,6 +61,7 @@ public class AppointmentBookingService {
         this.slotRepository = slotRepository;
         this.appointmentRepository = appointmentRepository;
         this.clientRepository = clientRepository;
+        this.specialistNotificationService = specialistNotificationService;
     }
 
     public SendMessage startBooking(Long telegramId, Long chatId) {
@@ -166,6 +169,7 @@ public class AppointmentBookingService {
         releaseSlots(appointment);
         appointment.setStatus(AppointmentStatus.CANCELLED);
         appointmentRepository.save(appointment);
+        specialistNotificationService.notifyAboutClientCancellation(appointment);
 
         return buildMessage(chatId, "✅ Запись отменена.", menuRow);
     }
@@ -321,6 +325,7 @@ public class AppointmentBookingService {
         bookingContextRepository.deleteById(context.getTelegramId());
         log.info("Appointment created: clientId={}, specialistId={}, startSlotId={}, slotsCount={}",
                 client.getId(), specialist.getId(), startSlot.getId(), slotsNeeded);
+        specialistNotificationService.notifyAboutNewAppointment(appointment);
 
         LocalTime endTime = startSlot.getStartTime().plusMinutes((long) slotsNeeded * 30);
         String text = String.format("""
@@ -413,10 +418,15 @@ public class AppointmentBookingService {
 
     private SendMessage showAvailableSlots(Long chatId, Integer scheduleId, Integer serviceId) {
         Service service = serviceRepository.findById(serviceId).orElseThrow();
+        Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow();
         int slotsNeeded = (int) Math.ceil((double) service.getDurationMinutes() / 30);
 
         List<ScheduleSlot> allSlots = slotRepository.findAllByScheduleIdOrdered(scheduleId);
         List<ScheduleSlot> validStarts = findValidStartSlots(allSlots, slotsNeeded);
+        if (schedule.getDate().isEqual(LocalDate.now())) {
+            LocalTime now = LocalTime.now();
+            validStarts.removeIf(startSlot -> !startSlot.getStartTime().isAfter(now));
+        }
 
         if (validStarts.isEmpty()) {
             return buildMessage(chatId,

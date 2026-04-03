@@ -75,7 +75,12 @@ public class ManagerRoleHandler implements TelegramRoleHandler {
                 anchorService.forget(telegramId);
                 reply.send(startHandler.prepareStartMessage(message));
             }
-            case "/menu" -> sendWithOptionalEdit(telegramId, menuHandler.prepareManagerMenu(chatId), reply);
+            case "/menu" -> {
+                managerService.clearPendingActionIfPresent(telegramId);
+                managerScheduleService.clearScheduleContextIfPresent(telegramId);
+                anchorService.forget(telegramId);
+                reply.send(menuHandler.prepareManagerMenu(chatId));
+            }
             case "/help" -> sendWithOptionalEdit(telegramId, helpHandler.prepareHelpForManager(chatId), reply);
             default -> sendWithOptionalEdit(telegramId, managerUnknownCommand(chatId), reply);
         }

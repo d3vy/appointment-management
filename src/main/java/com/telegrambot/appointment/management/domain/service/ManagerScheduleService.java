@@ -50,6 +50,7 @@ public class ManagerScheduleService {
     private final AppointmentRepository appointmentRepository;
     private final ManagerRepository managerRepository;
     private final TelegramTextMessageSender messageSender;
+    private final SpecialistNotificationService specialistNotificationService;
 
     public ManagerScheduleService(ManagerScheduleContextRepository scheduleContextRepository,
                                   SpecialistRepository specialistRepository,
@@ -57,7 +58,8 @@ public class ManagerScheduleService {
                                   ScheduleSlotRepository slotRepository,
                                   AppointmentRepository appointmentRepository,
                                   ManagerRepository managerRepository,
-                                  TelegramTextMessageSender messageSender) {
+                                  TelegramTextMessageSender messageSender,
+                                  SpecialistNotificationService specialistNotificationService) {
         this.scheduleContextRepository = scheduleContextRepository;
         this.specialistRepository = specialistRepository;
         this.scheduleRepository = scheduleRepository;
@@ -65,6 +67,7 @@ public class ManagerScheduleService {
         this.appointmentRepository = appointmentRepository;
         this.managerRepository = managerRepository;
         this.messageSender = messageSender;
+        this.specialistNotificationService = specialistNotificationService;
     }
 
     public SendMessage startScheduleFlow(Long telegramId, Long chatId) {
@@ -387,6 +390,7 @@ public class ManagerScheduleService {
         for (Appointment appointment : activeAppointments) {
             appointment.setStatus(AppointmentStatus.CANCELLED);
             notifyClientAboutCancellation(appointment);
+            specialistNotificationService.notifyAboutManagerCancellation(appointment);
         }
 
         appointmentRepository.saveAll(activeAppointments);

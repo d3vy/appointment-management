@@ -119,13 +119,14 @@ class ClientRoleHandlerTest {
         SendMessage menuMsg = new SendMessage("30", "menu");
         when(clientService.isNotificationsEnabled(3L)).thenReturn(false);
         when(menuHandler.prepareClientMenu(30L, false)).thenReturn(menuMsg);
-        when(anchorService.currentMessageId(eq(3L))).thenReturn(Optional.empty());
 
         List<BotApiMethod<?>> executed = new ArrayList<>();
         TelegramReply reply = new TelegramReply(executed::add);
         handler.handleMessage(message, reply);
 
         verify(bookingService).clearBookingContextIfPresent(3L);
+        verify(anchorService).forget(3L);
+        verify(anchorService, never()).currentMessageId(eq(3L));
         assertEquals(1, executed.size());
         assertEquals(menuMsg, executed.get(0));
     }

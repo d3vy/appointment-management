@@ -4,9 +4,10 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-# Secrets — never commit these
 .env
 *.env
+
+.cursorrules
 
 ### STS ###
 .apt_generated

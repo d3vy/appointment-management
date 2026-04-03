@@ -60,8 +60,8 @@ public class ClientRoleHandler implements TelegramRoleHandler {
             }
             case "/menu" -> {
                 bookingService.clearBookingContextIfPresent(telegramId);
-                sendWithOptionalEdit(telegramId,
-                        menuHandler.prepareClientMenu(chatId, clientService.isNotificationsEnabled(telegramId)), reply);
+                anchorService.forget(telegramId);
+                reply.send(menuHandler.prepareClientMenu(chatId, clientService.isNotificationsEnabled(telegramId)));
             }
             case "/make_appointment" -> sendWithOptionalEdit(telegramId, bookingService.startBooking(telegramId, chatId), reply);
             case "/appointments" -> sendWithOptionalEdit(telegramId,
